@@ -1,4 +1,4 @@
-/* Radial Flora — shared geometry + the "Giorgia Lupi (trial)" style.
+/* Floral Generator — shared geometry + the "Giorgia Lupi (trial)" style.
  *
  * A flower is three concentric rings:  I core (0..r1), II middle (r1..r2), III petal ring (r2..R).
  * The rings are cut into `folds` identical slices. Everything inside a slice is drawn

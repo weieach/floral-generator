@@ -1,4 +1,4 @@
-/* Radial Flora — "Painterly" style (style key: paint).
+/* Floral Generator — "Painterly" style (style key: paint).
  *
  * After the painted bouquets in visual-ref/D-painterly: saturated petals worked with visible
  * brush strokes (fine hatching, dabs, streaks or speckles), wet blotches of a second colour,
@@ -291,7 +291,7 @@
 
   global.Flora.styles.paint = {
     label: 'Painterly',
-    lede: 'Saturated painted flowers on black felt, worked with visible brush strokes and wet blotches of a second colour, with ragged edges and watercolour-paper grain.',
+    lede: 'Painterly texture with brush strokes, wet blotches and ragged edges.',
     defaultFolds: 6,
     foldRange: [5, 12],
     makeDesign, renderSVG, describe, rings,

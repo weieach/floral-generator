@@ -1,4 +1,4 @@
-/* Radial Flora — "Translucent" style (style key: butterfly).
+/* Floral Generator — "Translucent" style (style key: butterfly).
  *
  * Scanned-flower look: translucent petals washed in diluted colour, fine veins,
  * a soft blurred ink centre, and deep colour only in a dip at each tip, like butterfly wings.
@@ -257,7 +257,7 @@
     label: 'Translucent',
     defaultFolds: 8,
     foldRange: [5, 14],
-    lede: 'Scanned flowers with translucent, butterfly-wing petals: a soft ink wash, fine veins, and a blurred ink centre. The colours come from pressed-flower studies.',
+    lede: 'Pressed flower style study with translucent, butterfly-wing petals with soft ink wash and veins.',
     makeDesign, renderSVG, describe, rings, PALETTES,
   };
 })(window);

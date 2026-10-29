@@ -1,4 +1,4 @@
-/* Radial Flora — "Playful" style (style key: paper).
+/* Floral Generator — "Playful" style (style key: paper).
  *
  * Simple cut-paper flowers: chunky rounded silhouettes with hand-cut edges in flat,
  * vibrant colour, layered sheet over sheet.
@@ -249,7 +249,7 @@
   global.Flora.styles.paper = {
     label: 'Playful',
     foldRange: [4, 16],
-    lede: 'Simple cut-paper flowers in flat, vibrant colour, with chunky rounded shapes, hand-cut edges, and sheets layered one over another.',
+    lede: 'Cut-paper style with vibrant color palette.',
     makeDesign, renderSVG, describe, rings, PALETTES,
   };
 })(window);

@@ -13,17 +13,24 @@
   const RING_GAP = 14; // closest two rings may get, in tile units
   const past = []; // previous { seed, folds }, for the Back button
   let design = null;
+  // "All style overview": one seed shown in every direction, each at its own petal count
+  const ov = { seed: null, folds: {}, past: [] };
+  let view = 'single'; // or 'all'
 
   // one tab per visual direction
   const tabs = $('#tabs');
   // directions are numbered from 0, in tab order: "0. Giorgia Lupi (trial)", "1. Translucent", ...
   const styleTitle = key => `${Object.keys(STYLES).indexOf(key)}. ${STYLES[key].label}`;
-  tabs.innerHTML = Object.keys(STYLES).map(key =>
-    `<button class="tab" role="tab" type="button" data-style="${key}" id="tab-${key}">${styleTitle(key)}</button>`).join('');
+  // the overview tab comes first, then one tab per direction
+  tabs.innerHTML = `<button class="tab" role="tab" type="button" data-view="all" id="tab-all">All style overview</button>` +
+    Object.keys(STYLES).map(key =>
+      `<button class="tab" role="tab" type="button" data-style="${key}" id="tab-${key}">${styleTitle(key)}</button>`).join('');
+  const TAB_ORDER = ['all', ...Object.keys(STYLES)];
 
   function readHash() {
     const p = new URLSearchParams(location.hash.slice(1));
     const folds = parseInt(p.get('folds'), 10);
+    if (p.get('view') === 'all') view = 'all';
     if (p.get('seed')) state.seed = p.get('seed').toUpperCase().slice(0, 12);
     if (STYLES[p.get('style')]) state.style = p.get('style');
     state.folds = folds > 0 ? Math.max(MIN, Math.min(MAX, folds)) : defaultFolds(state.style);
@@ -42,6 +49,7 @@
   // While the slider is dragging, skip SVG filters (the watercolour ones are slow to rasterise)
   // and render properly once it is released.
   function render(animate, draft) {
+    if (view === 'all') return renderOverview(animate);
     const style = STYLES[state.style];
     if (!design || design.seed !== state.seed || design.style !== state.style) {
       design = style.makeDesign(state.seed);
@@ -63,18 +71,15 @@
     }
 
     document.body.dataset.style = state.style;
-    for (const t of tabs.children) {
-      const on = t.dataset.style === state.style;
-      t.setAttribute('aria-selected', on);
-      t.tabIndex = on ? 0 : -1;
-    }
+    document.body.dataset.view = 'single';
+    updateTabs(state.style);
     $('.stage').setAttribute('aria-labelledby', 'tab-' + state.style);
     $('#style-title').textContent = styleTitle(state.style);
     $('#style-lede').textContent = style.lede;
 
     const info = style.describe(design);
     $('#seed-label').textContent = 'No. ' + state.seed;
-    $('#fold-note').textContent = state.folds + ' folds';
+    $('#fold-note').textContent = state.folds + ' petals';
     $('#folds-value').textContent = state.folds;
     $('#fold-icon').innerHTML = foldIcon(state.folds);
     $('#r-petal').textContent = info.petal;
@@ -84,11 +89,76 @@
     $('#swatches').innerHTML = info.swatches.map(h => `<i style="background:${h}"></i>`).join('');
     document.documentElement.style.setProperty('--accent', design.palette ? design.palette.accent : design.ink);
     $('#back').disabled = past.length === 0;
-    tile.setAttribute('aria-label', `Flower ${state.seed}, ${state.folds} folds: ${info.petal}; ${info.middle}; ${info.core}`);
+    tile.setAttribute('aria-label', `Flower ${state.seed}, ${state.folds} petals: ${info.petal}; ${info.middle}; ${info.core}`);
     const moved = Object.entries(state.rings).filter(([k]) => k in design.ringDefaults);
     $('#reset-rings').hidden = !moved.length;
     const ringParams = moved.map(([k, v]) => `&${k}=${Math.round(v)}`).join('');
     history.replaceState(null, '', `#style=${state.style}&seed=${state.seed}&folds=${state.folds}${ringParams}`);
+  }
+
+  function updateTabs(selected) {
+    for (const t of tabs.children) {
+      const on = (t.dataset.style || t.dataset.view) === selected;
+      t.setAttribute('aria-selected', on);
+      t.tabIndex = on ? 0 : -1;
+    }
+  }
+
+  // ---------- All style overview ----------
+  const randomFolds = key => {
+    const [lo, hi] = STYLES[key].foldRange || [MIN, MAX];
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  };
+
+  function renderOverview(animate) {
+    const grid = $('#overview-grid');
+    grid.innerHTML = Object.keys(STYLES).map(key => {
+      const st = STYLES[key], n = ov.folds[key];
+      return `<button class="ov-tile" type="button" data-style="${key}" aria-label="Open ${styleTitle(key)}">` +
+        st.renderSVG(st.makeDesign(ov.seed), n, {}) +
+        `<span class="ov-label" aria-hidden="true">${styleTitle(key)}</span></button>`;
+    }).join('');
+    if (animate) grid.querySelectorAll('.ov-tile > svg').forEach(s => s.classList.add('bloom'));
+    document.body.dataset.view = 'all';
+    document.body.dataset.style = 'all';
+    updateTabs('all');
+    $('#ov-back').disabled = !ov.past.length;
+    history.replaceState(null, '', `#view=all&seed=${ov.seed}`);
+  }
+
+  function showOverview(focus) {
+    if (view === 'all') return;
+    ov.seed = state.seed;
+    for (const key in STYLES) ov.folds[key] = key === state.style ? state.folds : defaultFolds(key);
+    view = 'all';
+    render(true);
+    if (focus) $('#tab-all').focus();
+  }
+
+  // every tile gets the new design and a petal count from its own style's range
+  function ovRandomize() {
+    ov.past.push({ seed: ov.seed, folds: { ...ov.folds } });
+    if (ov.past.length > 100) ov.past.shift();
+    ov.seed = Flora.randomSeed();
+    for (const key in STYLES) ov.folds[key] = randomFolds(key);
+    render(true);
+  }
+
+  function ovBack() {
+    if (!ov.past.length) return;
+    Object.assign(ov, ov.past.pop());
+    render(true);
+  }
+
+  // clicking a tile opens that direction with the same flower
+  function openFromOverview(key) {
+    state.style = key;
+    state.seed = ov.seed;
+    state.folds = ov.folds[key];
+    slider.value = state.folds;
+    state.rings = {};
+    view = 'single';
+    render(true);
   }
 
   // keep rings in order with a little space between them (e.g. after a shared link or a drag)
@@ -110,8 +180,7 @@
     state.seed = Flora.randomSeed();
     state.rings = {};
     if (!state.lockFolds) {
-      const [lo, hi] = STYLES[state.style].foldRange || [MIN, MAX];
-      state.folds = lo + Math.floor(Math.random() * (hi - lo + 1));
+      state.folds = randomFolds(state.style);
       slider.value = state.folds;
     }
     render(true);
@@ -141,7 +210,8 @@
   const defaultFolds = key => STYLES[key].defaultFolds || 12;
 
   function setStyle(key, focus) {
-    if (!STYLES[key] || key === state.style) return;
+    if (!STYLES[key] || (key === state.style && view === 'single')) return;
+    view = 'single';
     state.style = key;
     state.rings = {};
     if (!state.lockFolds) { state.folds = defaultFolds(key); slider.value = state.folds; }
@@ -234,12 +304,25 @@
   // ---------- wiring ----------
   slider.addEventListener('input', () => setFolds(+slider.value, true));
   slider.addEventListener('change', () => setFolds(+slider.value));
-  tabs.addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) setStyle(t.dataset.style); });
+  tabs.addEventListener('click', e => {
+    const t = e.target.closest('.tab');
+    if (t) t.dataset.view === 'all' ? showOverview() : setStyle(t.dataset.style);
+  });
+  $('#overview-grid').addEventListener('click', e => { const t = e.target.closest('.ov-tile'); if (t) openFromOverview(t.dataset.style); });
+  $('#ov-randomize').addEventListener('click', ovRandomize);
+  $('#ov-back').addEventListener('click', ovBack);
   $('#randomize').addEventListener('click', randomize);
   $('#back').addEventListener('click', goBack);
   $('#grid').addEventListener('change', e => setGrid(e.target.checked));
   $('#lock-folds').addEventListener('change', e => setLockFolds(e.target.checked));
   $('#reset-rings').addEventListener('click', () => { state.rings = {}; render(false); });
+
+  // the grid's info tooltip also opens on tap (touch has no hover); Escape or a tap elsewhere closes it
+  const info = $('#grid-info'), infoBtn = info.querySelector('button');
+  const setInfo = open => { info.classList.toggle('open', open); infoBtn.setAttribute('aria-expanded', open); };
+  infoBtn.addEventListener('click', e => { e.stopPropagation(); setInfo(!info.classList.contains('open')); });
+  document.addEventListener('click', () => setInfo(false));
+  info.addEventListener('keydown', e => { if (e.key === 'Escape') { setInfo(false); infoBtn.blur(); } });
 
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -248,8 +331,13 @@
     const onSlider = t === slider;
     if (t.getAttribute && t.getAttribute('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
-      const keys = Object.keys(STYLES), i = keys.indexOf(state.style);
-      setStyle(keys[(i + (e.key === 'ArrowRight' ? 1 : -1) + keys.length) % keys.length], true);
+      const i = TAB_ORDER.indexOf(view === 'all' ? 'all' : state.style);
+      const next = TAB_ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + TAB_ORDER.length) % TAB_ORDER.length];
+      next === 'all' ? showOverview(true) : setStyle(next, true);
+      return;
+    }
+    if (view === 'all') { // only randomizing applies here
+      if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) { e.preventDefault(); ovRandomize(); }
       return;
     }
     if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) {
@@ -268,5 +356,9 @@
   readHash();
   if (!state.seed) state.seed = Flora.randomSeed();
   slider.value = state.folds;
+  if (view === 'all') { // opened from an overview link
+    ov.seed = state.seed;
+    for (const key in STYLES) ov.folds[key] = defaultFolds(key);
+  }
   render(true);
 })();
