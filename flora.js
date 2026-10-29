@@ -1,4 +1,4 @@
-/* Radial Flora — geometry + SVG rendering.
+/* Radial Flora — shared geometry + the "Giorgia Lupi (trial)" style.
  *
  * A flower is three concentric rings:  I core (0..r1), II middle (r1..r2), III petal ring (r2..R).
  * The rings are cut into `folds` identical slices. Everything inside a slice is drawn
@@ -525,26 +525,40 @@
     return s;
   }
 
-  // The concentric ring grid: three rings + the fold lines, with one slice highlighted.
-  function renderGrid(d, n) {
-    const alpha = TAU / n, ext = R + 46;
+  // The concentric ring grid: the rings + the fold lines, with one slice highlighted.
+  // `rings` lists {key, r, label} from the inside out; every ring with a key gets a drag handle
+  // (the app resizes it), the outermost petal ring has none and stays fixed.
+  function renderGrid(rings, n) {
+    const alpha = TAU / n, ext = R + 46, labelAt = Math.PI * 0.75;
     let p = '';
     for (let s = 0; s < n; s++) { const t = s * alpha + alpha / 2; p += `M0 0L${pt(polar(ext, t))}`; }
     const unit = `M0 0L${pt(polar(ext, -alpha / 2))}A${ext} ${ext} 0 0 1 ${pt(polar(ext, alpha / 2))}Z`;
-    const rings = [[d.r1, 'I  core'], [d.r2, 'II  middle'], [R, 'III  petal']];
-    let labels = '';
-    for (const [r, label] of rings) {
-      const [x, y] = polar(r, Math.PI * 0.75);
-      labels += `<text x="${f1(x + 10)}" y="${f1(y + 6)}">${label}</text>`;
+    let labels = '', handles = '', hits = '';
+    for (const { key, r, label } of rings) {
+      const [x, y] = polar(r, labelAt);
+      labels += `<text x="${f1(x + 14)}" y="${f1(y + 6)}">${label}</text>`;
+      if (key) {
+        handles += circ(7, { cx: f1(x), cy: f1(y) });
+        hits += circ(r, { 'data-ring': key });
+      }
     }
-    const lines = `<path d="${p}"/>${rings.map(([r]) => circ(r, {})).join('')}`;
+    const lines = `<path d="${p}"/>${rings.map(({ r }) => circ(r, {})).join('')}`;
     const ink = '#16130f', halo = '#f6efe6';
-    return `<g class="grid" pointer-events="none">` +
+    return `<g class="grid">` +
+      `<g pointer-events="none">` +
       `<path d="${unit}" fill="${halo}" fill-opacity="0.22" stroke="${ink}" stroke-opacity="0.5" stroke-width="1.2"/>` +
       `<g fill="none" stroke="${halo}" stroke-opacity="0.75" stroke-width="3.2">${lines}</g>` +
       `<g fill="none" stroke="${ink}" stroke-opacity="0.85" stroke-width="1.1" stroke-dasharray="3 4">${lines}</g>` +
+      `<g fill="${ink}" stroke="${halo}" stroke-width="3">${handles}</g>` +
       `<g font-family="'EB Garamond', Georgia, serif" font-size="22" font-style="italic" fill="${ink}" ` +
-      `stroke="${halo}" stroke-width="5" stroke-linejoin="round" paint-order="stroke">${labels}</g></g>`;
+      `stroke="${halo}" stroke-width="5" stroke-linejoin="round" paint-order="stroke">${labels}</g></g>` +
+      // wide invisible strokes: the grab area for each resizable ring
+      `<g class="ring-hits" fill="none" stroke="#000" stroke-opacity="0" stroke-width="22" pointer-events="stroke">${hits}</g>` +
+      `</g>`;
+  }
+
+  function rings(d) {
+    return [{ key: 'r1', r: d.r1, label: 'I  core' }, { key: 'r2', r: d.r2, label: 'II  middle' }, { key: null, r: R, label: 'III  petal' }];
   }
 
   let renderCount = 0;
@@ -566,10 +580,10 @@
     const tile = `x="${-HALF}" y="${-HALF}" width="${HALF * 2}" height="${HALF * 2}"`;
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-HALF} ${-HALF} ${HALF * 2} ${HALF * 2}">` +
       `<defs>${defs.join('')}</defs>` +
-      `<rect ${tile} fill="#ebdccc"/><rect ${tile} filter="url(#${u}mottle)" opacity="0.8"/>` +
+      `<rect ${tile} fill="#ebdccc"/><rect class="texture" ${tile} filter="url(#${u}mottle)" opacity="0.8"/>` +
       `<g class="flower">${flower}</g>` +
-      `<rect ${tile} filter="url(#${u}grain)" opacity="0.45" style="mix-blend-mode:multiply"/>` +
-      (opts.grid ? renderGrid(d, n) : '') +
+      `<rect class="texture" ${tile} filter="url(#${u}grain)" opacity="0.45" style="mix-blend-mode:multiply"/>` +
+      (opts.grid ? renderGrid(rings(d), n) : '') +
       `</svg>`;
   }
 
@@ -588,8 +602,24 @@
     if (d.back) petal += ' · second whorl behind';
     const zones = [...new Set(d.middle.zones.map(z => ZONE_NAMES[z.type]))];
     const middle = listJoin(zones).replace(/^./, c => c.toUpperCase());
-    return { petal, middle, core: CORE_NAMES[d.core.type], palette: d.palette.name };
+    const c = d.col;
+    return { petal, middle, core: CORE_NAMES[d.core.type], palette: d.palette.name, swatches: [c.pA, c.pB, c.mA, c.mB, c.cA, c.ink] };
   }
 
-  global.Flora = { makeDesign, renderSVG, describe, randomSeed, PALETTES };
+  // Shared geometry for every visual direction; each direction registers itself in `styles`.
+  global.Flora = {
+    randomSeed,
+    util: {
+      TAU, R, HALF, makeRng, hashSeed, mix, f1, pt, polar, toDeg, clamp, smooth, poly, el, circ, dot,
+      marks, fit, SHAPES, petalGeometry, renderGrid,
+    },
+    styles: {
+      lupi: {
+        label: 'Giorgia Lupi (trial)',
+        foldRange: [6, 20],
+        lede: 'Flat, printed colour and fine-line hatching on a paper tile, after Giorgia Lupi’s flowers for the Binghamton University Libraries installation.',
+        makeDesign, renderSVG, describe, rings, PALETTES,
+      },
+    },
+  };
 })(window);

@@ -9,9 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-style="lupi">
+  <header class="topnav">
+    <span class="brand">Radial Flora</span>
+    <nav class="tabs" role="tablist" aria-label="Visual direction" id="tabs"></nav>
+  </header>
+
   <main class="app">
-    <section class="stage">
+    <section class="stage" role="tabpanel">
       <figure class="specimen">
         <div class="tile-wrap">
           <div class="tile" id="tile" role="img" aria-label="Generated radial flower"></div>
@@ -25,8 +30,8 @@
 
     <aside class="panel">
       <header>
-        <h1>Radial Flora</h1>
-        <p class="lede">A generative flower built on three concentric rings: core, middle, and the petal ring. The visual language follows Giorgia Lupi’s flowers for the Binghamton University Libraries installation.</p>
+        <h1 id="style-title">0. Giorgia Lupi (trial)</h1>
+        <p class="lede"><span id="style-lede"></span> Every flower is built on three concentric rings (core, middle, petal), all cut into the same number of mirrored folds.</p>
       </header>
 
       <div class="control">
@@ -34,20 +39,32 @@
           <label for="folds">Folds</label>
           <span class="readout"><svg id="fold-icon" viewBox="-12 -12 24 24" aria-hidden="true"></svg><output id="folds-value" for="folds">12</output></span>
         </div>
-        <input type="range" id="folds" min="3" max="36" step="1" value="12">
+        <input type="range" id="folds" min="3" max="20" step="1" value="12">
         <p class="hint">The number of identical slices the rings are cut into. Each slice is mirrored and holds one petal. <kbd>←</kbd><kbd>→</kbd></p>
       </div>
 
-      <div class="actions">
-        <button id="randomize" class="primary" type="button">Randomize <kbd>Space</kbd></button>
-        <button id="back" class="ghost" type="button" disabled aria-label="Previous design">← Back</button>
+      <div class="random-group">
+        <label class="toggle">
+          <input type="checkbox" id="lock-folds" checked>
+          <span class="switch" aria-hidden="true"></span>
+          Lock folds when randomizing <kbd>L</kbd>
+        </label>
+
+        <div class="actions">
+          <button id="randomize" class="primary" type="button">Randomize <kbd>Space</kbd></button>
+          <button id="back" class="ghost" type="button" disabled aria-label="Previous design">← Back</button>
+        </div>
       </div>
 
-      <label class="toggle">
-        <input type="checkbox" id="grid">
-        <span class="switch" aria-hidden="true"></span>
-        Show ring grid <kbd>G</kbd>
-      </label>
+      <div class="grid-control">
+        <label class="toggle">
+          <input type="checkbox" id="grid">
+          <span class="switch" aria-hidden="true"></span>
+          Show ring grid <kbd>G</kbd>
+        </label>
+        <p class="hint">With the grid on, drag any inner ring to resize it. The outer petal ring stays fixed.
+          <button id="reset-rings" class="text-button" type="button" hidden>Reset rings</button></p>
+      </div>
 
       <section class="recipe" aria-live="polite">
         <h2>Specimen</h2>
@@ -68,6 +85,9 @@
   </main>
 
   <script src="flora.js"></script>
+  <script src="butterfly.js"></script>
+  <script src="paper.js"></script>
+  <script src="paint.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
