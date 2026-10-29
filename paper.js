@@ -248,7 +248,7 @@
 
   global.Flora.styles.paper = {
     label: 'Playful',
-    foldRange: [4, 14],
+    foldRange: [6, 14],
     lede: 'Cut-paper style with vibrant color palette.',
     makeDesign, renderSVG, describe, rings, PALETTES,
   };
