@@ -17,8 +17,9 @@ Each direction is a tab in the top nav, numbered from 0:
 2. **Playful** — flat cut-paper flowers with hand-cut edges ([paper.js](paper.js)).
 3. **Painterly** — brushworked, blotched petals with leaves on black felt ([paint.js](paint.js)).
 
-The first tab, **All style overview**, shows every direction in a 2×2 grid for the same seed,
-each at its own petal count, with just Randomize and Back. Click a flower to open it in its own tab.
+The first tab, **All style overview**, shows every direction in a 2×2 grid. Randomize gives all
+four a new design (one shared seed, each at its own petal count); click a card to randomize just
+that one. Back undoes the last change. The ↗ button on a card opens it in its own tab.
 
 ## Controls
 

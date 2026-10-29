@@ -13,8 +13,9 @@
   const RING_GAP = 14; // closest two rings may get, in tile units
   const past = []; // previous { seed, folds }, for the Back button
   let design = null;
-  // "All style overview": one seed shown in every direction, each at its own petal count
-  const ov = { seed: null, folds: {}, past: [] };
+  // "All style overview": every direction side by side, each card with its own seed and
+  // petal count (Randomize gives them all one new seed; clicking a card reshuffles just it)
+  const ov = { seeds: {}, folds: {}, past: [] };
   let view = 'single'; // or 'all'
 
   // one tab per visual direction
@@ -110,50 +111,74 @@
     return lo + Math.floor(Math.random() * (hi - lo + 1));
   };
 
-  function renderOverview(animate) {
+  const cardSVG = key => STYLES[key].renderSVG(STYLES[key].makeDesign(ov.seeds[key]), ov.folds[key], {});
+
+  function renderOverview(animate, only) {
     const grid = $('#overview-grid');
-    grid.innerHTML = Object.keys(STYLES).map(key => {
-      const st = STYLES[key], n = ov.folds[key];
-      return `<button class="ov-tile" type="button" data-style="${key}" aria-label="Open ${styleTitle(key)}">` +
-        st.renderSVG(st.makeDesign(ov.seed), n, {}) +
-        `<span class="ov-label" aria-hidden="true">${styleTitle(key)}</span></button>`;
-    }).join('');
-    if (animate) grid.querySelectorAll('.ov-tile > svg').forEach(s => s.classList.add('bloom'));
+    if (only) { // just one card changed
+      grid.querySelector(`.ov-tile[data-style="${only}"]`).firstElementChild.outerHTML = cardSVG(only);
+    } else {
+      grid.innerHTML = Object.keys(STYLES).map(key => `<div class="ov-card">` +
+        `<button class="ov-tile" type="button" data-style="${key}" aria-label="Randomize ${styleTitle(key)}" title="Click to randomize">` +
+        cardSVG(key) + `<span class="ov-label" aria-hidden="true">${styleTitle(key)}</span></button>` +
+        `<button class="ov-open" type="button" data-style="${key}" aria-label="Open ${styleTitle(key)} in its own tab" title="Open in its own tab">↗</button>` +
+        `</div>`).join('');
+    }
+    if (animate) {
+      const svgs = only ? [grid.querySelector(`.ov-tile[data-style="${only}"] > svg`)] : grid.querySelectorAll('.ov-tile > svg');
+      svgs.forEach(s => s.classList.add('bloom'));
+    }
     document.body.dataset.view = 'all';
     document.body.dataset.style = 'all';
     updateTabs('all');
     $('#ov-back').disabled = !ov.past.length;
-    history.replaceState(null, '', `#view=all&seed=${ov.seed}`);
+    // one seed when the cards share it, otherwise each card's own
+    const seeds = Object.values(ov.seeds), shared = seeds.every(x => x === seeds[0]);
+    history.replaceState(null, '', '#view=all&' +
+      (shared ? `seed=${seeds[0]}` : Object.entries(ov.seeds).map(([k, v]) => `${k}=${v}`).join('&')));
   }
 
   function showOverview(focus) {
     if (view === 'all') return;
-    ov.seed = state.seed;
+    for (const key in STYLES) ov.seeds[key] = state.seed;
     for (const key in STYLES) ov.folds[key] = key === state.style ? state.folds : defaultFolds(key);
     view = 'all';
     render(true);
     if (focus) $('#tab-all').focus();
   }
 
-  // every tile gets the new design and a petal count from its own style's range
-  function ovRandomize() {
-    ov.past.push({ seed: ov.seed, folds: { ...ov.folds } });
+  function ovRemember() {
+    ov.past.push({ seeds: { ...ov.seeds }, folds: { ...ov.folds } });
     if (ov.past.length > 100) ov.past.shift();
-    ov.seed = Flora.randomSeed();
-    for (const key in STYLES) ov.folds[key] = randomFolds(key);
+  }
+
+  // every card gets one new seed, and a petal count from its own style's range
+  function ovRandomize() {
+    ovRemember();
+    const seed = Flora.randomSeed();
+    for (const key in STYLES) { ov.seeds[key] = seed; ov.folds[key] = randomFolds(key); }
     render(true);
   }
 
+  // clicking a card reshuffles just that card
+  function ovRandomizeOne(key) {
+    ovRemember();
+    ov.seeds[key] = Flora.randomSeed();
+    ov.folds[key] = randomFolds(key);
+    renderOverview(true, key);
+  }
+
+  // Back undoes the last change, whether it was one card or all of them
   function ovBack() {
     if (!ov.past.length) return;
     Object.assign(ov, ov.past.pop());
     render(true);
   }
 
-  // clicking a tile opens that direction with the same flower
+  // the ↗ button opens that direction in its own tab with the same flower
   function openFromOverview(key) {
     state.style = key;
-    state.seed = ov.seed;
+    state.seed = ov.seeds[key];
     state.folds = ov.folds[key];
     slider.value = state.folds;
     state.rings = {};
@@ -308,7 +333,11 @@
     const t = e.target.closest('.tab');
     if (t) t.dataset.view === 'all' ? showOverview() : setStyle(t.dataset.style);
   });
-  $('#overview-grid').addEventListener('click', e => { const t = e.target.closest('.ov-tile'); if (t) openFromOverview(t.dataset.style); });
+  $('#overview-grid').addEventListener('click', e => {
+    const open = e.target.closest('.ov-open'), tile = e.target.closest('.ov-tile');
+    if (open) openFromOverview(open.dataset.style);
+    else if (tile) ovRandomizeOne(tile.dataset.style);
+  });
   $('#ov-randomize').addEventListener('click', ovRandomize);
   $('#ov-back').addEventListener('click', ovBack);
   $('#randomize').addEventListener('click', randomize);
@@ -356,9 +385,12 @@
   readHash();
   if (!state.seed) state.seed = Flora.randomSeed();
   slider.value = state.folds;
-  if (view === 'all') { // opened from an overview link
-    ov.seed = state.seed;
-    for (const key in STYLES) ov.folds[key] = defaultFolds(key);
+  if (view === 'all') { // opened from an overview link: one shared seed, or one per card
+    const p = new URLSearchParams(location.hash.slice(1));
+    for (const key in STYLES) {
+      ov.seeds[key] = (p.get(key) || state.seed).toUpperCase().slice(0, 12);
+      ov.folds[key] = defaultFolds(key);
+    }
   }
   render(true);
 })();

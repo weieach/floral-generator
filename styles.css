@@ -417,6 +417,7 @@ body:not([data-view="all"]) .overview { display: none; }
   .ov-grid { grid-template-columns: 1fr; width: 100%; }
 }
 
+.ov-card { position: relative; }
 .ov-tile {
   position: relative;
   display: block;
@@ -432,6 +433,27 @@ body:not([data-view="all"]) .overview { display: none; }
 .ov-tile:hover:not(:disabled) { background: none; transform: translateY(-3px); }
 .ov-tile svg { display: block; width: 100%; height: 100%; }
 .ov-tile > svg.bloom { animation: unfurl 0.8s ease-out; }
+
+/* opens the card's style in its own tab */
+.ov-open {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(251, 247, 241, 0.92);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+.ov-card:hover .ov-open, .ov-open:focus-visible { opacity: 1; }
+@media (hover: none) { .ov-open { opacity: 1; } } /* touch: always visible */
+.ov-open:hover:not(:disabled) { background: var(--ink); color: var(--page); }
 
 /* the style name sits inside the card, bottom left, on a small paper label */
 .ov-label {
