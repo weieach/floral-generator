@@ -272,7 +272,7 @@ button:disabled { opacity: 0.3; cursor: default; }
 }
 .range-row input::-webkit-inner-spin-button, .range-row input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .range-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.range-row .text-button { font-size: 15px; margin-left: 4px; }
+.range-row .text-button { font-size: 15px; margin: 0 0 0 4px; align-self: center; }
 
 /* keyboard shortcuts sit at the right end of their row */
 .keys { margin-left: auto; display: inline-flex; gap: 4px; white-space: nowrap; }
