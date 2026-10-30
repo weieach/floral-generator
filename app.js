@@ -12,6 +12,7 @@
   const RING_KEYS = ['r1', 'r2', 'tip'];
   const RING_GAP = 14; // closest two rings may get, in tile units
   const past = []; // previous { seed, folds }, for the Back button
+  const foldRanges = {}; // petal ranges the user set for Randomize, per direction (else the style's own)
   let design = null;
   // "All style overview": every direction side by side, each card with its own seed and
   // petal count (Randomize gives them all one new seed; clicking a card reshuffles just it)
@@ -90,6 +91,7 @@
     $('#swatches').innerHTML = info.swatches.map(h => `<i style="background:${h}"></i>`).join('');
     document.documentElement.style.setProperty('--accent', design.palette ? design.palette.accent : design.ink);
     $('#back').disabled = past.length === 0;
+    updateRangeRow();
     tile.setAttribute('aria-label', `Flower ${state.seed}, ${state.folds} petals: ${info.petal}; ${info.middle}; ${info.core}`);
     const moved = Object.entries(state.rings).filter(([k]) => k in design.ringDefaults);
     $('#reset-rings').hidden = !moved.length;
@@ -106,8 +108,10 @@
   }
 
   // ---------- All style overview ----------
+  const styleRange = key => STYLES[key].foldRange || [MIN, MAX];
+  const foldRange = key => foldRanges[key] || styleRange(key);
   const randomFolds = key => {
-    const [lo, hi] = STYLES[key].foldRange || [MIN, MAX];
+    const [lo, hi] = foldRange(key);
     return lo + Math.floor(Math.random() * (hi - lo + 1));
   };
 
@@ -223,6 +227,33 @@
   function setLockFolds(on) {
     state.lockFolds = on;
     $('#lock-folds').checked = on;
+    updateRangeRow();
+  }
+
+  // ---------- petal range for Randomize (only while unlocked) ----------
+  const minInput = $('#fold-min'), maxInput = $('#fold-max');
+
+  function updateRangeRow() {
+    $('#fold-range').hidden = state.lockFolds;
+    const [lo, hi] = foldRange(state.style);
+    if (document.activeElement !== minInput) minInput.value = lo;
+    if (document.activeElement !== maxInput) maxInput.value = hi;
+  }
+
+  // the edited end stays put; the other end moves if needed so min never passes max
+  function setFoldRange(which) {
+    const input = which === 'min' ? minInput : maxInput;
+    let [lo, hi] = foldRange(state.style);
+    const v = parseInt(input.value, 10);
+    if (v > 0) {
+      const n = Math.max(MIN, Math.min(MAX, v));
+      if (which === 'min') { lo = n; hi = Math.max(hi, n); } else { hi = n; lo = Math.min(lo, n); }
+      const [dLo, dHi] = styleRange(state.style);
+      if (lo === dLo && hi === dHi) delete foldRanges[state.style];
+      else foldRanges[state.style] = [lo, hi];
+    }
+    minInput.value = lo; maxInput.value = hi;
+    updateRangeRow();
   }
 
   function setFolds(n, draft) {
@@ -345,6 +376,9 @@
   $('#grid').addEventListener('change', e => setGrid(e.target.checked));
   $('#lock-folds').addEventListener('change', e => setLockFolds(e.target.checked));
   $('#reset-rings').addEventListener('click', () => { state.rings = {}; render(false); });
+  minInput.addEventListener('change', () => setFoldRange('min'));
+  maxInput.addEventListener('change', () => setFoldRange('max'));
+  $('#reset-range').addEventListener('click', () => { delete foldRanges[state.style]; updateRangeRow(); });
 
   // the grid's info tooltip also opens on tap (touch has no hover); Escape or a tap elsewhere closes it
   const info = $('#grid-info'), infoBtn = info.querySelector('button');
@@ -358,6 +392,7 @@
     const t = e.target;
     const onButton = t.tagName === 'BUTTON';
     const onSlider = t === slider;
+    if (t === minInput || t === maxInput) return; // typing a petal range
     if (t.getAttribute && t.getAttribute('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
       const i = TAB_ORDER.indexOf(view === 'all' ? 'all' : state.style);
@@ -385,6 +420,9 @@
   readHash();
   if (!state.seed) state.seed = Flora.randomSeed();
   slider.value = state.folds;
+  // the browser may restore the toggles from before a reload; match them to the state
+  $('#lock-folds').checked = state.lockFolds;
+  $('#grid').checked = state.grid;
   if (view === 'all') { // opened from an overview link: one shared seed, or one per card
     const p = new URLSearchParams(location.hash.slice(1));
     for (const key in STYLES) {

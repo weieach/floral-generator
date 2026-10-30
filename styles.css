@@ -253,6 +253,27 @@ button:disabled { opacity: 0.3; cursor: default; }
 
 .toggle-row { display: flex; align-items: center; gap: 10px; }
 
+/* petal range for Randomize, shown while petals are unlocked; indented to line up with the toggle's label */
+.range-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding-left: 48px; margin-top: -4px; color: var(--muted); font-size: 15px; }
+.range-row[hidden] { display: none; }
+.range-row input {
+  width: 1.8em;
+  font: inherit;
+  font-size: 16px;
+  font-variant-numeric: lining-nums tabular-nums;
+  text-align: center;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 1px 0;
+  -moz-appearance: textfield;
+}
+.range-row input::-webkit-inner-spin-button, .range-row input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.range-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.range-row .text-button { font-size: 15px; margin-left: 4px; }
+
 /* keyboard shortcuts sit at the right end of their row */
 .keys { margin-left: auto; display: inline-flex; gap: 4px; white-space: nowrap; }
 .keys kbd { margin-left: 0; }

@@ -61,6 +61,14 @@
             </label>
             <span class="keys" aria-hidden="true"><kbd>L</kbd></span>
           </div>
+          <div class="range-row" id="fold-range" hidden>
+            Range:
+            <input type="number" id="fold-min" min="3" max="20" step="1" aria-label="Fewest petals when randomizing">
+            –
+            <input type="number" id="fold-max" min="3" max="20" step="1" aria-label="Most petals when randomizing">
+            petals
+            <button id="reset-range" class="text-button" type="button">Reset</button>
+          </div>
           <div class="toggle-row">
             <label class="toggle">
               <input type="checkbox" id="grid">

@@ -26,7 +26,9 @@ that one. Back undoes the last change. The ↗ button on a card opens it in its 
 - **Petals** — how many mirrored slices the rings are cut into, one petal per slice (3–20).
   Arrow keys nudge it.
 - **Lock petals when randomizing** (`L`) — on by default; turn it off and Randomize also picks
-  a petal count suited to the current direction.
+  a petal count suited to the current direction. While it is off, a row underneath sets the
+  fewest and most petals Randomize may pick for that direction (it starts at the direction's
+  own range; Reset goes back to it). The overview cards use these ranges too.
 - **Randomize** (`Space`) / **Back** — a new design, or the previous one.
 - **Show ring grid** (`G`) — overlays the rings and slice lines. With the grid on, drag the inner
   rings to resize the pattern (the outer petal ring stays fixed).
