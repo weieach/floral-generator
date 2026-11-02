@@ -114,21 +114,6 @@ body {
 
 .tile svg { display: block; width: 100%; height: 100%; }
 
-.flower.bloom {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: bloom 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-@keyframes bloom {
-  from { opacity: 0; transform: scale(0.86) rotate(-14deg); }
-  to   { opacity: 1; transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .flower.bloom { animation: none; }
-}
-
 .caption {
   display: flex;
   justify-content: space-between;
@@ -388,31 +373,14 @@ body.dragging-ring, body.dragging-ring .tile .ring-hits circle { cursor: grabbin
 body[data-style="butterfly"] { --page: #f7f5f3; --line: #e3ddd8; }
 body[data-style="butterfly"] .tile-wrap::before { display: none; }
 body[data-style="butterfly"] .tile { box-shadow: 0 24px 60px -34px rgba(40, 30, 40, 0.35); }
-/* fade the whole tile (a composited layer) so the heavy filters rasterise only once */
-body[data-style="butterfly"] .flower.bloom { animation: none; }
-body[data-style="butterfly"] .tile > svg.bloom { animation: unfurl 0.9s ease-out; }
-
-@keyframes unfurl {
-  from { opacity: 0.15; transform: scale(0.985); }
-  to   { opacity: 1; transform: none; }
-}
 
 /* ---------- Playful (paper): the paper tile is the whole composition ---------- */
 body[data-style="paper"] .tile-wrap::before { display: none; }
 body[data-style="paper"] .tile { box-shadow: 0 2px 4px rgba(40, 30, 20, 0.08), 0 20px 40px -26px rgba(40, 30, 20, 0.4); }
-body[data-style="paper"] .flower.bloom { animation: none; }
-body[data-style="paper"] .tile > svg.bloom { animation: pop 0.55s cubic-bezier(0.3, 1.4, 0.5, 1); }
-
-@keyframes pop {
-  from { opacity: 0; transform: scale(0.94) rotate(-2deg); }
-  to   { opacity: 1; transform: none; }
-}
 
 /* ---------- Painterly (paint): heavy filters, so fade the whole tile once ---------- */
 body[data-style="paint"] .tile-wrap::before { display: none; }
 body[data-style="paint"] .tile { box-shadow: 0 2px 4px rgba(20, 30, 20, 0.12), 0 24px 48px -28px rgba(20, 40, 20, 0.5); }
-body[data-style="paint"] .flower.bloom { animation: none; }
-body[data-style="paint"] .tile > svg.bloom { animation: unfurl 0.8s ease-out; }
 
 /* ---------- All style overview: every direction in a 2×2 grid ---------- */
 body[data-view="all"] .app { display: none; }
@@ -453,7 +421,6 @@ body:not([data-view="all"]) .overview { display: none; }
 }
 .ov-tile:hover:not(:disabled) { background: none; transform: translateY(-3px); }
 .ov-tile svg { display: block; width: 100%; height: 100%; }
-.ov-tile > svg.bloom { animation: unfurl 0.8s ease-out; }
 
 /* opens the card's style in its own tab */
 .ov-open {
@@ -493,10 +460,6 @@ body:not([data-view="all"]) .overview { display: none; }
 .ov-actions #ov-randomize { grid-column: 2; grid-row: 1; flex: none; min-width: 240px; }
 .ov-actions #ov-back { grid-column: 1; grid-row: 1; justify-self: end; }
 
-@media (prefers-reduced-motion: reduce) {
-  .ov-tile > svg.bloom { animation: none; }
-}
-
 /* ---------- small screens ---------- */
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
@@ -508,8 +471,4 @@ body:not([data-view="all"]) .overview { display: none; }
   .tabs { flex-wrap: wrap; overflow: visible; row-gap: 0; }
   .tab { padding: 10px 8px; font-size: 16px; }
   .tab[aria-selected="true"]::after { left: 8px; right: 8px; bottom: 4px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body[data-style] .flower.bloom, body[data-style] .tile > svg.bloom { animation: none; }
 }

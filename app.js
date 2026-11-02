@@ -49,9 +49,9 @@
   }
 
   // While the slider is dragging, skip SVG filters (the watercolour ones are slow to rasterise)
-  // and render properly once it is released.
-  function render(animate, draft) {
-    if (view === 'all') return renderOverview(animate);
+  // and render properly once it is released. New designs replace the old with a hard cut.
+  function render(draft) {
+    if (view === 'all') return renderOverview();
     const style = STYLES[state.style];
     if (!design || design.seed !== state.seed || design.style !== state.style) {
       design = style.makeDesign(state.seed);
@@ -67,10 +67,6 @@
     tile.innerHTML = draft
       ? svg.replace(/<rect class="texture"[^>]*\/>/g, '').replace(/\sfilter="url\([^)]*\)"/g, '')
       : svg;
-    if (animate) {
-      tile.querySelector('.flower').classList.add('bloom');
-      tile.firstElementChild.classList.add('bloom');
-    }
 
     document.body.dataset.style = state.style;
     document.body.dataset.view = 'single';
@@ -117,7 +113,7 @@
 
   const cardSVG = key => STYLES[key].renderSVG(STYLES[key].makeDesign(ov.seeds[key]), ov.folds[key], {});
 
-  function renderOverview(animate, only) {
+  function renderOverview(only) {
     const grid = $('#overview-grid');
     if (only) { // just one card changed
       grid.querySelector(`.ov-tile[data-style="${only}"]`).firstElementChild.outerHTML = cardSVG(only);
@@ -127,10 +123,6 @@
         cardSVG(key) + `<span class="ov-label" aria-hidden="true">${styleTitle(key)}</span></button>` +
         `<button class="ov-open" type="button" data-style="${key}" aria-label="Open ${styleTitle(key)} in its own tab" title="Open in its own tab">↗</button>` +
         `</div>`).join('');
-    }
-    if (animate) {
-      const svgs = only ? [grid.querySelector(`.ov-tile[data-style="${only}"] > svg`)] : grid.querySelectorAll('.ov-tile > svg');
-      svgs.forEach(s => s.classList.add('bloom'));
     }
     document.body.dataset.view = 'all';
     document.body.dataset.style = 'all';
@@ -147,7 +139,7 @@
     for (const key in STYLES) ov.seeds[key] = state.seed;
     for (const key in STYLES) ov.folds[key] = key === state.style ? state.folds : defaultFolds(key);
     view = 'all';
-    render(true);
+    render();
     if (focus) $('#tab-all').focus();
   }
 
@@ -161,7 +153,7 @@
     ovRemember();
     const seed = Flora.randomSeed();
     for (const key in STYLES) { ov.seeds[key] = seed; ov.folds[key] = randomFolds(key); }
-    render(true);
+    render();
   }
 
   // clicking a card reshuffles just that card
@@ -169,14 +161,14 @@
     ovRemember();
     ov.seeds[key] = Flora.randomSeed();
     ov.folds[key] = randomFolds(key);
-    renderOverview(true, key);
+    renderOverview(key);
   }
 
   // Back undoes the last change, whether it was one card or all of them
   function ovBack() {
     if (!ov.past.length) return;
     Object.assign(ov, ov.past.pop());
-    render(true);
+    render();
   }
 
   // the ↗ button opens that direction in its own tab with the same flower
@@ -187,7 +179,7 @@
     slider.value = state.folds;
     state.rings = {};
     view = 'single';
-    render(true);
+    render();
   }
 
   // keep rings in order with a little space between them (e.g. after a shared link or a drag)
@@ -212,7 +204,7 @@
       state.folds = randomFolds(state.style);
       slider.value = state.folds;
     }
-    render(true);
+    render();
   }
 
   function goBack() {
@@ -221,7 +213,7 @@
     state.seed = prev.seed;
     if (!state.lockFolds) { state.folds = prev.folds; slider.value = state.folds; }
     state.rings = {};
-    render(true);
+    render();
   }
 
   function setLockFolds(on) {
@@ -259,7 +251,7 @@
   function setFolds(n, draft) {
     state.folds = Math.max(MIN, Math.min(MAX, n));
     slider.value = state.folds;
-    render(false, draft);
+    render(draft);
   }
 
   // each direction opens at its own fold count (Translucent reads best with fewer, broader petals)
@@ -271,14 +263,14 @@
     state.style = key;
     state.rings = {};
     if (!state.lockFolds) { state.folds = defaultFolds(key); slider.value = state.folds; }
-    render(true);
+    render();
     if (focus) $('#tab-' + key).focus();
   }
 
   function setGrid(on) {
     state.grid = on;
     $('#grid').checked = on;
-    render(false);
+    render();
   }
 
   // ---------- dragging the rings (grid on) ----------
@@ -306,7 +298,7 @@
   function onDrag(e) {
     state.rings[drag.key] = svgRadius(e);
     if (drag.frame) return;
-    drag.frame = requestAnimationFrame(() => { drag.frame = 0; render(false, true); }); // draft while moving
+    drag.frame = requestAnimationFrame(() => { drag.frame = 0; render(true); }); // draft while moving
   }
 
   function endDrag() {
@@ -317,14 +309,12 @@
     window.removeEventListener('pointerup', endDrag);
     document.body.classList.remove('dragging-ring');
     drag = null;
-    render(false);
+    render();
   }
 
   // ---------- export ----------
   function svgString() {
     const svg = tile.querySelector('svg').cloneNode(true);
-    svg.classList.remove('bloom');
-    svg.querySelector('.flower').classList.remove('bloom');
     svg.setAttribute('width', '1000');
     svg.setAttribute('height', '1000');
     return new XMLSerializer().serializeToString(svg);
@@ -375,7 +365,7 @@
   $('#back').addEventListener('click', goBack);
   $('#grid').addEventListener('change', e => setGrid(e.target.checked));
   $('#lock-folds').addEventListener('change', e => setLockFolds(e.target.checked));
-  $('#reset-rings').addEventListener('click', () => { state.rings = {}; render(false); });
+  $('#reset-rings').addEventListener('click', () => { state.rings = {}; render(); });
   minInput.addEventListener('change', () => setFoldRange('min'));
   maxInput.addEventListener('change', () => setFoldRange('max'));
   $('#reset-range').addEventListener('click', () => { delete foldRanges[state.style]; updateRangeRow(); });
@@ -430,5 +420,5 @@
       ov.folds[key] = defaultFolds(key);
     }
   }
-  render(true);
+  render();
 })();
