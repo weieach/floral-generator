@@ -21,6 +21,23 @@ The first tab, **All style overview**, shows every direction in a 2×2 grid. Ran
 four a new design (one shared seed, each at its own petal count); click a card to randomize just
 that one. Back undoes the last change. The ↗ button on a card opens it in its own tab.
 
+The last tab, **Garden randomization**, shows 20 Translucent flowers at once, drawn by the same
+generator with its odds re-weighted toward a hand-picked set of favourites (the `GARDEN` block in
+[butterfly.js](butterfly.js)). Each flower picks its own petal count. Randomize replaces all 20,
+clicking a flower reshuffles just it, Back undoes, and the ↓ button on a flower saves it as a PNG.
+The 20 seeds are kept in the URL. On top of the re-weighting it follows these rules:
+
+- No fan-shaped petals, and only smooth or notched petal edges.
+- One or two layers, even odds.
+- **One layer:** 5–8 petals, or 5–6 if they are spatulate.
+- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no lanceolate
+  petals on the back layer; tip dots on one layer at most. The back layer's tip sits in a lower
+  category than the front's (ink-dipped > deep colour > scorched > plain; both plain is fine),
+  and its colour is never darker than the front tip's.
+- Lanceolate, ovate and elliptic petals never get the three-dot tip.
+
+Garden seeds only reproduce in the Garden tab; the same seed in Translucent gives another flower.
+
 ## Controls
 
 - **Petals** — how many mirrored slices the rings are cut into, one petal per slice (3–20).

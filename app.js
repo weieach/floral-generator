@@ -17,22 +17,31 @@
   // "All style overview": every direction side by side, each card with its own seed and
   // petal count (Randomize gives them all one new seed; clicking a card reshuffles just it)
   const ov = { seeds: {}, folds: {}, past: [] };
-  let view = 'single'; // or 'all'
+  let view = 'single'; // or 'all', 'garden'
+  // "Garden randomization": many biased Translucent flowers at once, each with its own seed
+  // (a Garden design carries its own petal count)
+  const GARDEN = Flora.garden;
+  const gd = { seeds: [], past: [] };
 
   // one tab per visual direction
   const tabs = $('#tabs');
   // directions are numbered from 0, in tab order: "0. Giorgia Lupi (trial)", "1. Translucent", ...
   const styleTitle = key => `${Object.keys(STYLES).indexOf(key)}. ${STYLES[key].label}`;
-  // the overview tab comes first, then one tab per direction
+  // the overview tab comes first, then one tab per direction, then the garden
   tabs.innerHTML = `<button class="tab" role="tab" type="button" data-view="all" id="tab-all">All style overview</button>` +
     Object.keys(STYLES).map(key =>
-      `<button class="tab" role="tab" type="button" data-style="${key}" id="tab-${key}">${styleTitle(key)}</button>`).join('');
-  const TAB_ORDER = ['all', ...Object.keys(STYLES)];
+      `<button class="tab" role="tab" type="button" data-style="${key}" id="tab-${key}">${styleTitle(key)}</button>`).join('') +
+    `<button class="tab" role="tab" type="button" data-view="garden" id="tab-garden">${GARDEN.label}</button>`;
+  const TAB_ORDER = ['all', ...Object.keys(STYLES), 'garden'];
 
   function readHash() {
     const p = new URLSearchParams(location.hash.slice(1));
     const folds = parseInt(p.get('folds'), 10);
     if (p.get('view') === 'all') view = 'all';
+    if (p.get('view') === 'garden') {
+      view = 'garden';
+      gd.seeds = (p.get('seeds') || '').toUpperCase().split(',').filter(Boolean).map(s => s.slice(0, 12)).slice(0, GARDEN.count);
+    }
     if (p.get('seed')) state.seed = p.get('seed').toUpperCase().slice(0, 12);
     if (STYLES[p.get('style')]) state.style = p.get('style');
     state.folds = folds > 0 ? Math.max(MIN, Math.min(MAX, folds)) : defaultFolds(state.style);
@@ -52,6 +61,7 @@
   // and render properly once it is released. New designs replace the old with a hard cut.
   function render(draft) {
     if (view === 'all') return renderOverview();
+    if (view === 'garden') return renderGarden();
     const style = STYLES[state.style];
     if (!design || design.seed !== state.seed || design.style !== state.style) {
       design = style.makeDesign(state.seed);
@@ -132,6 +142,58 @@
     const seeds = Object.values(ov.seeds), shared = seeds.every(x => x === seeds[0]);
     history.replaceState(null, '', '#view=all&' +
       (shared ? `seed=${seeds[0]}` : Object.entries(ov.seeds).map(([k, v]) => `${k}=${v}`).join('&')));
+  }
+
+  // ---------- Garden randomization ----------
+  const gardenFile = seed => `flora-garden-${seed}-${GARDEN.makeDesign(seed).folds}`;
+
+  function gardenCard(seed, i) {
+    const d = GARDEN.makeDesign(seed), info = GARDEN.describe(d);
+    return `<div class="gd-card" data-i="${i}">` +
+      `<button class="gd-tile" type="button" data-i="${i}" title="Click to reshuffle" ` +
+      `aria-label="Flower ${seed}, ${d.folds} petals: ${info.petal}. Click to reshuffle">${GARDEN.renderSVG(d, d.folds, {})}</button>` +
+      `<span class="gd-label" aria-hidden="true">No. ${seed} · ${d.folds} petals</span>` +
+      `<button class="gd-save" type="button" data-i="${i}" aria-label="Save flower ${seed} as PNG" title="Save as PNG">↓</button>` +
+      `</div>`;
+  }
+
+  function renderGarden(only) {
+    const grid = $('#garden-grid');
+    if (only !== undefined) grid.querySelector(`.gd-card[data-i="${only}"]`).outerHTML = gardenCard(gd.seeds[only], only);
+    else grid.innerHTML = gd.seeds.map(gardenCard).join('');
+    document.body.dataset.view = 'garden';
+    document.body.dataset.style = 'garden';
+    updateTabs('garden');
+    $('#gd-back').disabled = !gd.past.length;
+    history.replaceState(null, '', '#view=garden&seeds=' + gd.seeds.join(','));
+  }
+
+  function showGarden(focus) {
+    if (view === 'garden') return;
+    if (gd.seeds.length !== GARDEN.count) gd.seeds = Array.from({ length: GARDEN.count }, () => Flora.randomSeed());
+    view = 'garden';
+    render();
+    if (focus) $('#tab-garden').focus();
+  }
+
+  function gdRemember() {
+    gd.past.push(gd.seeds.slice());
+    if (gd.past.length > 100) gd.past.shift();
+  }
+  function gdRandomize() {
+    gdRemember();
+    gd.seeds = gd.seeds.map(() => Flora.randomSeed());
+    renderGarden();
+  }
+  function gdRandomizeOne(i) {
+    gdRemember();
+    gd.seeds[i] = Flora.randomSeed();
+    renderGarden(i);
+  }
+  function gdBack() {
+    if (!gd.past.length) return;
+    gd.seeds = gd.past.pop();
+    renderGarden();
   }
 
   function showOverview(focus) {
@@ -313,11 +375,24 @@
   }
 
   // ---------- export ----------
-  function svgString() {
-    const svg = tile.querySelector('svg').cloneNode(true);
+  function svgString(el = tile.querySelector('svg')) {
+    const svg = el.cloneNode(true);
     svg.setAttribute('width', '1000');
     svg.setAttribute('height', '1000');
     return new XMLSerializer().serializeToString(svg);
+  }
+
+  function savePNG(el, name) {
+    const url = URL.createObjectURL(new Blob([svgString(el)], { type: 'image/svg+xml' }));
+    const img = new Image();
+    img.onload = () => {
+      const size = 2400, canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(b => download(b, name + '.png'), 'image/png');
+    };
+    img.src = url;
   }
 
   function download(blob, name) {
@@ -334,26 +409,23 @@
     download(new Blob([svgString()], { type: 'image/svg+xml' }), fileBase() + '.svg');
   });
 
-  $('#dl-png').addEventListener('click', () => {
-    const url = URL.createObjectURL(new Blob([svgString()], { type: 'image/svg+xml' }));
-    const img = new Image();
-    img.onload = () => {
-      const size = 2400, canvas = document.createElement('canvas');
-      canvas.width = canvas.height = size;
-      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(b => download(b, fileBase() + '.png'), 'image/png');
-    };
-    img.src = url;
-  });
+  $('#dl-png').addEventListener('click', () => savePNG(tile.querySelector('svg'), fileBase()));
 
   // ---------- wiring ----------
+  const goTo = (key, focus) => key === 'all' ? showOverview(focus) : key === 'garden' ? showGarden(focus) : setStyle(key, focus);
   slider.addEventListener('input', () => setFolds(+slider.value, true));
   slider.addEventListener('change', () => setFolds(+slider.value));
   tabs.addEventListener('click', e => {
     const t = e.target.closest('.tab');
-    if (t) t.dataset.view === 'all' ? showOverview() : setStyle(t.dataset.style);
+    if (t) goTo(t.dataset.view || t.dataset.style);
   });
+  $('#garden-grid').addEventListener('click', e => {
+    const save = e.target.closest('.gd-save'), t = e.target.closest('.gd-tile');
+    if (save) savePNG(save.closest('.gd-card').querySelector('svg'), gardenFile(gd.seeds[+save.dataset.i]));
+    else if (t) gdRandomizeOne(+t.dataset.i);
+  });
+  $('#gd-randomize').addEventListener('click', gdRandomize);
+  $('#gd-back').addEventListener('click', gdBack);
   $('#overview-grid').addEventListener('click', e => {
     const open = e.target.closest('.ov-open'), tile = e.target.closest('.ov-tile');
     if (open) openFromOverview(open.dataset.style);
@@ -385,13 +457,12 @@
     if (t === minInput || t === maxInput) return; // typing a petal range
     if (t.getAttribute && t.getAttribute('role') === 'tab' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
-      const i = TAB_ORDER.indexOf(view === 'all' ? 'all' : state.style);
-      const next = TAB_ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + TAB_ORDER.length) % TAB_ORDER.length];
-      next === 'all' ? showOverview(true) : setStyle(next, true);
+      const i = TAB_ORDER.indexOf(view === 'single' ? state.style : view);
+      goTo(TAB_ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + TAB_ORDER.length) % TAB_ORDER.length], true);
       return;
     }
-    if (view === 'all') { // only randomizing applies here
-      if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) { e.preventDefault(); ovRandomize(); }
+    if (view !== 'single') { // only randomizing applies here
+      if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) { e.preventDefault(); view === 'all' ? ovRandomize() : gdRandomize(); }
       return;
     }
     if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) {
@@ -419,6 +490,9 @@
       ov.seeds[key] = (p.get(key) || state.seed).toUpperCase().slice(0, 12);
       ov.folds[key] = defaultFolds(key);
     }
+  }
+  if (view === 'garden') { // opened from a garden link: top up to a full garden if it was short
+    while (gd.seeds.length < GARDEN.count) gd.seeds.push(Flora.randomSeed());
   }
   render();
 })();

@@ -38,10 +38,54 @@
   const SUMI = '#1d1a1b'; // plain ink, used instead of the palette's tinted ink some of the time
   const lum = h => { const v = parseInt(h.slice(1), 16); return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255); };
 
+  // "Garden randomization": the same generator, re-weighted toward the traits of the hand-picked
+  // favourites in generated results/ (65 seeds, compared against 20,000 random ones):
+  // few petals, spoon shapes of moderate width, two-tone washes, ink-dipped tips, a second
+  // layer, a small centre, and the blue / coral / violet palettes over the muddier ones.
+  const GARDEN = {
+    folds: [[5, 4], [6, 3.5], [7, 2], [8, 1.2]], // one layer: 5–8 petals
+    spoonFolds: [[5, 4], [6, 3.5]], // one layer of spoon petals: 5–6
+    twoLayerFolds: [5, 7], // two layers: petals per layer, uniform (and no spoon petals)
+    palette: {
+      'Forget-me-not': 2.2, Pimpernel: 1.8, Bellflower: 1.65, 'Bleeding heart': 1.25, Pansy: 0.7,
+      Nigella: 0.55, Columbine: 0.45, 'Fern & violet': 0.3, Hydrangea: 0.2,
+    },
+    twoTone: { 'yellow → blue': 1.45, 'peach → periwinkle': 1.35, 'cream → cornflower': 1.35, 'lemon → lilac': 0.9, 'blush → aqua': 0.7 },
+    twoToneChance: 0.88,
+    shapes: [['spatulate', 5], ['ovate', 1.7], ['elliptic', 1.4], ['orbicular', 0.6], ['lanceolate', 0.5]], // no fans
+    edges: shape => [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.3]], // smooth or notched only
+    pointed: ['lanceolate', 'ovate', 'elliptic'], // no three tip dots on these
+    tipChance: { main: 0.85, back: 0.55 },
+    inkTipChance: 0.55,
+    burnChance: 0.5,
+    backChance: 0.5, // one or two layers, even odds
+  };
+
   // ---------- design ----------
-  function makeLayer(rng, P, role, ink, twoTone) {
-    const shape = rng.weighted([['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
-    const edge = rng.weighted([['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
+  // G (optional) is the Garden bias; without it every draw is exactly the Translucent original.
+  // Garden only, in `o`: twoLayers (the flower has a back layer, so no spoon petals; the back
+  // layer itself has no lanceolate petals either),
+  // front (the front layer's tip category and colour, which this back layer's must stay under, see backTip)
+  // and noDots (the other layer already has tip dots, so this one may not).
+
+  // tip categories, deep to light: ink-dipped 3 > deep colour 2 > scorched 1 > plain 0
+  const tipRank = (L, ink) => (L.tip ? (L.tip.colour === ink ? 3 : 2) : L.tipBurn ? 1 : 0);
+  const tipColour = (L, P) => (L.tip ? L.tip.colour : L.tipBurn ? P.burn : null);
+
+  // Garden: a back layer's tip must be in a lower category than the front's (only plain may
+  // match plain), and its actual colour may not be darker than the front tip's either.
+  // Behind an ink dip an ink tip steps down to the deep colour; a dip that is still too deep
+  // is dropped (a scorched tip may then stand in, see burnOK).
+  function backTip(rng, tip, f, ink, P, byDepth) {
+    if (!tip || f.rank < 3) return null;
+    if (tip.colour === ink) tip.colour = mix(byDepth[0], P.ink, rng.range(0.1, 0.4));
+    return lum(tip.colour) >= lum(f.colour) ? tip : null;
+  }
+
+  function makeLayer(rng, P, role, ink, twoTone, G, o = {}) {
+    // Garden: no spoon petals on a two-layer flower, and no lanceolate petals on its back layer
+    const shape = rng.weighted(G ? G.shapes.filter(([s]) => !(o.twoLayers && s === 'spatulate') && !(role === 'back' && s === 'lanceolate')) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
+    const edge = rng.weighted(G ? G.edges(shape) : [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
     const E = {
       none: {},
       notch: { zone: rng.range(0.15, 0.25), depth: rng.range(0.06, 0.14) },
@@ -57,48 +101,70 @@
     // body colours are softened toward the paper, so neighbouring tones barely differ
     const base = twoTone ? mix(twoTone.warm, P.paper, rng.range(0.1, 0.25)) : mix(rng.pick(lights), P.paper, rng.range(0.25, 0.45));
     const toward = twoTone ? mix(twoTone.cool, P.paper, rng.range(0.05, 0.2)) : mix(rng.pick(lights), P.paper, rng.range(0.2, 0.4));
-    const tip = rng.chance(role === 'main' ? 0.75 : 0.4) ? {
-      colour: rng.chance(0.3) ? ink : mix(byDepth[0], P.ink, rng.range(0.1, 0.4)),
+    let tip = rng.chance(G ? G.tipChance[role] : role === 'main' ? 0.75 : 0.4) ? {
+      colour: rng.chance(G ? G.inkTipChance : 0.3) ? ink : mix(byDepth[0], P.ink, rng.range(0.1, 0.4)),
       alpha: rng.range(0.82, 0.95),
-      eyes: rng.chance(0.4) ? rng.int(1, 2) : 0, eyeSize: rng.range(2.5, 5),
+      eyes: rng.chance(0.4) ? rng.int(1, 2) : 0, eyeSize: rng.range(2.5, 5), // dots in the dip: 0, 1, or 2 (= three dots)
     } : null;
+    // Garden: tip dots on one layer at most, and never the three-dot version on pointed petals
+    // (lanceolate, ovate and elliptic all taper to a point; only round and spoon tips keep it)
+    if (G && tip) tip.eyes = o.noDots ? 0 : G.pointed.includes(shape) ? Math.min(tip.eyes, 1) : tip.eyes;
+    if (G && o.front) tip = backTip(rng, tip, o.front, ink, P, byDepth);
+    // a scorched back tip only behind a deep-coloured or ink-dipped front tip, and only if the
+    // scorch colour is no darker than that tip
+    const burnOK = !(G && o.front) || (o.front.rank > 1 && lum(P.burn) >= lum(o.front.colour));
 
     return {
       role, shape, edge, E,
       cap: shape === 'flabellate' ? 'round' : null, capH: rng.range(0.6, 0.9),
-      width: role === 'main' ? rng.range(1.1, 1.5) : rng.range(0.9, 1.3),
+      // Garden: the widest main petals blur into a disc at low petal counts, so stay at 1.1–1.38,
+      // leaning narrow
+      width: role === 'main' ? (G ? 1.1 + 0.28 * Math.pow(rng.range(0, 1), 1.3) : rng.range(1.1, 1.5)) : rng.range(0.9, 1.3),
       extent: role === 'main' ? 1 : rng.range(0.8, 0.95),
       rbF: rng.range(0.05, 0.25), // petals meet almost at the centre, so no paper shows through
       base, toward, tip, tone: base, bodyAlpha: rng.range(0.5, 0.7),
       opacity: role === 'main' ? rng.range(0.7, 0.9) : rng.range(0.4, 0.65),
       veinGap: rng.range(4, 9), veinAlpha: rng.range(0.14, 0.32),
       pool: rng.chance(0.7) ? rng.range(3, 6) : 0,
-      tipBurn: !tip && rng.chance(0.4), // a scorched tip stands in for the dip when there is none
+      // a scorched tip stands in for the dip when there is none
+      tipBurn: !tip && (G ? burnOK && rng.chance(G.burnChance) : rng.chance(0.4)),
       burnSize: rng.range(6, 12),
     };
   }
 
-  function makeDesign(seed) {
+  function makeDesign(seed, G) {
     const rng = makeRng(seed);
-    const P = rng.pick(PALETTES);
+    const P = G ? rng.weighted(PALETTES.map(p => [p, G.palette[p.name]])) : rng.pick(PALETTES);
     const ink = rng.chance(0.4) ? SUMI : P.ink;
-    const r1 = R * rng.range(0.08, 0.15);
+    const r1 = R * (G ? rng.range(0.095, 0.15) : rng.range(0.08, 0.15));
     const r2 = R * rng.range(Math.max(0.22, r1 / R + 0.09), 0.34);
     // three in four flowers have two colours in the light area (warm heart, cool toward the tip)
-    const twoTone = rng.chance(0.75) ? rng.pick(TWO_TONES) : null;
-    const main = makeLayer(rng, P, 'main', ink, twoTone);
-    const back = rng.chance(0.55) ? makeLayer(rng, P, 'back', ink, twoTone) : null;
-    return {
+    const twoTone = rng.chance(G ? G.twoToneChance : 0.75)
+      ? (G ? rng.weighted(TWO_TONES.map(t => [t, G.twoTone[t.name]])) : rng.pick(TWO_TONES)) : null;
+    // Garden decides 1 or 2 layers first, since a two-layer flower changes how both are drawn;
+    // the Translucent original keeps its own order of draws
+    const twoLayers = G ? rng.chance(G.backChance) : false;
+    const main = makeLayer(rng, P, 'main', ink, twoTone, G, { twoLayers });
+    const back = (G ? twoLayers : rng.chance(0.55))
+      // Garden: the back layer's tip is lighter than the front's (see backTip)
+      ? makeLayer(rng, P, 'back', ink, twoTone, G, G ? {
+        twoLayers, front: { rank: tipRank(main, ink), colour: tipColour(main, P) }, noDots: !!(main.tip && main.tip.eyes),
+      } : {}) : null;
+    const d = {
       seed, pal: P, ink, r1, r2, main, back, twoTone,
-      // ring III: where the dark tip begins (a small outer band by default)
-      tip: R * (1 - rng.range(0.12, 0.24)),
+      // ring III: where the dark tip begins (a small outer band by default; Garden leans deeper)
+      tip: R * (1 - (G ? rng.range(0.15, 0.24) : rng.range(0.12, 0.24))),
       noise: hashSeed(String(seed)) % 997,
       // the centre is a single small blurred circle
       centre: {
-        size: rng.range(0.8, 1.3), blur: rng.range(0.2, 0.32), strength: rng.range(0.8, 0.95),
+        size: G ? rng.range(0.8, 1.15) : rng.range(0.8, 1.3), blur: rng.range(0.2, 0.32), strength: rng.range(0.8, 0.95),
         colour: rng.chance(0.3) ? mix(ink, rng.pick(P.wash), 0.35) : ink,
       },
     };
+    // a Garden flower carries its own petal count: 5–7 per layer with two layers; one layer
+    // has 5–8, or 5–6 if its petals are spoon-shaped
+    if (G) d.folds = back ? rng.int(...G.twoLayerFolds) : rng.weighted(main.shape === 'spatulate' ? G.spoonFolds : G.folds);
+    return d;
   }
 
   // ---------- rendering ----------
@@ -258,6 +324,14 @@
     defaultFolds: 8,
     foldRange: [5, 14],
     lede: 'Pressed flower style study with translucent, butterfly-wing petals with soft ink wash and veins.',
-    makeDesign, renderSVG, describe, rings, PALETTES,
+    makeDesign: seed => makeDesign(seed), renderSVG, describe, rings, PALETTES,
+  };
+
+  // Not a tab of its own style: the Garden view shows many of these at once (see app.js).
+  global.Flora.garden = {
+    label: 'Garden randomization',
+    count: 20,
+    makeDesign: seed => makeDesign(seed, GARDEN),
+    renderSVG, describe,
   };
 })(window);

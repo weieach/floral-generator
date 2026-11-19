@@ -460,6 +460,93 @@ body:not([data-view="all"]) .overview { display: none; }
 .ov-actions #ov-randomize { grid-column: 2; grid-row: 1; flex: none; min-width: 240px; }
 .ov-actions #ov-back { grid-column: 1; grid-row: 1; justify-self: end; }
 
+/* ---------- Garden randomization: 20 flowers in a 5×4 grid ---------- */
+body[data-style="garden"] { --page: #f7f5f3; --line: #e3ddd8; }
+body[data-view="garden"] .app { display: none; }
+body:not([data-view="garden"]) .garden { display: none; }
+
+.garden {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 30px 24px 48px;
+  min-height: calc(100vh - var(--nav-h));
+}
+
+.garden-head { width: var(--gd-w); text-align: left; }
+.garden-head h1 { font-size: 30px; }
+.garden-head .lede { max-width: 62ch; }
+
+/* sized so all four rows fit the window where possible, but never smaller than ~150px a tile */
+.garden { --gd-w: min(100%, 1400px, max(720px, calc((100vh - var(--nav-h) - 260px) * 1.25))); }
+.gd-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  width: var(--gd-w);
+}
+
+.gd-card { position: relative; }
+.gd-tile {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow: hidden;
+  box-shadow: 0 16px 34px -26px rgba(40, 30, 40, 0.45);
+  transition: transform 0.2s ease;
+}
+.gd-tile:hover:not(:disabled) { background: none; transform: translateY(-3px); }
+.gd-tile svg { display: block; width: 100%; height: 100%; }
+
+/* seed and petal count, and a save button, shown on hover */
+.gd-label, .gd-save {
+  position: absolute;
+  background: rgba(251, 247, 241, 0.92);
+  color: var(--ink);
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+.gd-label {
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 9px 3px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.3;
+  pointer-events: none;
+  font-variant-numeric: lining-nums;
+}
+.gd-save {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+}
+.gd-card:hover .gd-label, .gd-card:hover .gd-save, .gd-card:focus-within .gd-label, .gd-save:focus-visible { opacity: 1; }
+@media (hover: none) { .gd-label, .gd-save { opacity: 1; } }
+.gd-save:hover:not(:disabled) { background: var(--ink); color: var(--page); }
+
+.garden .ov-actions { width: var(--gd-w); }
+.garden .ov-actions #gd-randomize { grid-column: 2; grid-row: 1; flex: none; min-width: 240px; }
+.garden .ov-actions #gd-back { grid-column: 1; grid-row: 1; justify-self: end; }
+
+@media (max-width: 1000px) { .gd-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .garden { padding: 22px 16px 40px; --gd-w: 100%; }
+  .gd-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .garden .ov-actions #gd-randomize { min-width: 0; }
+}
+
 /* ---------- small screens ---------- */
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
