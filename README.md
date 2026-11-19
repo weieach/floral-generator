@@ -30,11 +30,11 @@ The 20 seeds are kept in the URL. On top of the re-weighting it follows these ru
 - No fan-shaped petals, and only smooth or notched petal edges.
 - One or two layers, even odds.
 - **One layer:** 5–8 petals, or 5–6 if they are spatulate.
-- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no lanceolate
-  petals on the back layer; tip dots on one layer at most. The back layer's tip sits in a lower
-  category than the front's (ink-dipped > deep colour > scorched > plain; both plain is fine),
-  and its colour is never darker than the front tip's.
-- Lanceolate, ovate and elliptic petals never get the three-dot tip.
+- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no sharp-tipped
+  (lanceolate or ovate) petals on the back layer; tip dots on one layer at most. The back
+  layer's tip sits in a lower category than the front's (ink-dipped > deep colour > scorched >
+  plain; both plain is fine), and its colour is never darker than the front tip's.
+- Sharp-tipped (lanceolate or ovate) petals never get the three-dot tip.
 
 Garden seeds only reproduce in the Garden tab; the same seed in Translucent gives another flower.
 

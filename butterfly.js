@@ -54,7 +54,9 @@
     twoToneChance: 0.88,
     shapes: [['spatulate', 5], ['ovate', 1.7], ['elliptic', 1.4], ['orbicular', 0.6], ['lanceolate', 0.5]], // no fans
     edges: shape => [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.3]], // smooth or notched only
-    pointed: ['lanceolate', 'ovate', 'elliptic'], // no three tip dots on these
+    // sharp-tipped shapes (what the rules call "lanceolate"): never on a back layer, and never
+    // the three-dot tip; elliptic and orbicular tips are rounded, so they are not in it
+    pointed: ['lanceolate', 'ovate'],
     tipChance: { main: 0.85, back: 0.55 },
     inkTipChance: 0.55,
     burnChance: 0.5,
@@ -64,7 +66,7 @@
   // ---------- design ----------
   // G (optional) is the Garden bias; without it every draw is exactly the Translucent original.
   // Garden only, in `o`: twoLayers (the flower has a back layer, so no spoon petals; the back
-  // layer itself has no lanceolate petals either),
+  // layer itself has no sharp-tipped petals either),
   // front (the front layer's tip category and colour, which this back layer's must stay under, see backTip)
   // and noDots (the other layer already has tip dots, so this one may not).
 
@@ -83,8 +85,8 @@
   }
 
   function makeLayer(rng, P, role, ink, twoTone, G, o = {}) {
-    // Garden: no spoon petals on a two-layer flower, and no lanceolate petals on its back layer
-    const shape = rng.weighted(G ? G.shapes.filter(([s]) => !(o.twoLayers && s === 'spatulate') && !(role === 'back' && s === 'lanceolate')) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
+    // Garden: no spoon petals on a two-layer flower, and no sharp-tipped petals on its back layer
+    const shape = rng.weighted(G ? G.shapes.filter(([s]) => !(o.twoLayers && s === 'spatulate') && !(role === 'back' && G.pointed.includes(s))) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
     const edge = rng.weighted(G ? G.edges(shape) : [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
     const E = {
       none: {},
@@ -106,8 +108,8 @@
       alpha: rng.range(0.82, 0.95),
       eyes: rng.chance(0.4) ? rng.int(1, 2) : 0, eyeSize: rng.range(2.5, 5), // dots in the dip: 0, 1, or 2 (= three dots)
     } : null;
-    // Garden: tip dots on one layer at most, and never the three-dot version on pointed petals
-    // (lanceolate, ovate and elliptic all taper to a point; only round and spoon tips keep it)
+    // Garden: tip dots on one layer at most, and never the three-dot version on sharp-tipped
+    // petals (G.pointed)
     if (G && tip) tip.eyes = o.noDots ? 0 : G.pointed.includes(shape) ? Math.min(tip.eyes, 1) : tip.eyes;
     if (G && o.front) tip = backTip(rng, tip, o.front, ink, P, byDepth);
     // a scorched back tip only behind a deep-coloured or ink-dipped front tip, and only if the
