@@ -25,18 +25,25 @@ The last tab, **Garden randomization**, shows 20 Translucent flowers at once, dr
 generator with its odds re-weighted toward a hand-picked set of favourites (the `GARDEN` block in
 [butterfly.js](butterfly.js)). Each flower picks its own petal count. Randomize replaces all 20,
 clicking a flower reshuffles just it, Back undoes, and the ↓ button on a flower saves it as a PNG.
-The 20 seeds are kept in the URL. On top of the re-weighting it follows these rules:
+The 20 seeds are kept in the URL. The **Full colour range** switch (`C`) makes every palette and
+two-tone wash equally likely instead of favouring the favourites' ones; flipping it recolours the
+same 20 flowers without changing their shapes. On top of the re-weighting it follows these rules:
 
 - No fan-shaped petals, and only smooth or notched petal edges.
 - One or two layers, even odds.
 - **One layer:** 5–8 petals, or 5–6 if they are spatulate.
-- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no sharp-tipped
-  (lanceolate or ovate) petals on the back layer; tip dots on one layer at most. The back
+- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no lanceolate
+  petals on the back layer; tip dots on one layer at most, and none at all
+  next to a scorched layer. The back
   layer's tip sits in a lower category than the front's (ink-dipped > deep colour > scorched >
   plain; both plain is fine), and its colour is never darker than the front tip's.
-- Sharp-tipped (lanceolate or ovate) petals never get the three-dot tip.
+- Lanceolate petals never get the three-dot tip.
 
 Garden seeds only reproduce in the Garden tab; the same seed in Translucent gives another flower.
+
+The Garden's rules and their status are tracked in [docs/garden-rules.md](docs/garden-rules.md)
+(check them with `node tools/check-garden-rules.js`); [docs/flower-variations.md](docs/flower-variations.md)
+names every variation, matching the Floral_Prototype editor's dropdowns.
 
 ## Controls
 

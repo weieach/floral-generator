@@ -21,7 +21,8 @@
   // "Garden randomization": many biased Translucent flowers at once, each with its own seed
   // (a Garden design carries its own petal count)
   const GARDEN = Flora.garden;
-  const gd = { seeds: [], past: [] };
+  // full: the "Full colour range" switch (every palette and wash equally likely)
+  const gd = { seeds: [], past: [], full: false };
 
   // one tab per visual direction
   const tabs = $('#tabs');
@@ -41,6 +42,7 @@
     if (p.get('view') === 'garden') {
       view = 'garden';
       gd.seeds = (p.get('seeds') || '').toUpperCase().split(',').filter(Boolean).map(s => s.slice(0, 12)).slice(0, GARDEN.count);
+      gd.full = p.get('colours') === 'all';
     }
     if (p.get('seed')) state.seed = p.get('seed').toUpperCase().slice(0, 12);
     if (STYLES[p.get('style')]) state.style = p.get('style');
@@ -145,10 +147,11 @@
   }
 
   // ---------- Garden randomization ----------
-  const gardenFile = seed => `flora-garden-${seed}-${GARDEN.makeDesign(seed).folds}`;
+  // the colour mode is part of the name, since the same seed is coloured differently in each
+  const gardenFile = seed => `flora-garden${gd.full ? '-allcolours' : ''}-${seed}-${GARDEN.makeDesign(seed, gd.full).folds}`;
 
   function gardenCard(seed, i) {
-    const d = GARDEN.makeDesign(seed), info = GARDEN.describe(d);
+    const d = GARDEN.makeDesign(seed, gd.full), info = GARDEN.describe(d);
     return `<div class="gd-card" data-i="${i}">` +
       `<button class="gd-tile" type="button" data-i="${i}" title="Click to reshuffle" ` +
       `aria-label="Flower ${seed}, ${d.folds} petals: ${info.petal}. Click to reshuffle">${GARDEN.renderSVG(d, d.folds, {})}</button>` +
@@ -165,7 +168,15 @@
     document.body.dataset.style = 'garden';
     updateTabs('garden');
     $('#gd-back').disabled = !gd.past.length;
-    history.replaceState(null, '', '#view=garden&seeds=' + gd.seeds.join(','));
+    $('#gd-full-colour').checked = gd.full;
+    $('#gd-colour-note').textContent = gd.full ? 'Every palette and wash equally likely' : 'Favouring the favourites’ palettes';
+    history.replaceState(null, '', '#view=garden&seeds=' + gd.seeds.join(',') + (gd.full ? '&colours=all' : ''));
+  }
+
+  // flipping the switch recolours the same 20 flowers (their shapes stay put)
+  function setFullColour(on) {
+    gd.full = on;
+    renderGarden();
   }
 
   function showGarden(focus) {
@@ -425,6 +436,7 @@
     else if (t) gdRandomizeOne(+t.dataset.i);
   });
   $('#gd-randomize').addEventListener('click', gdRandomize);
+  $('#gd-full-colour').addEventListener('change', e => setFullColour(e.target.checked));
   $('#gd-back').addEventListener('click', gdBack);
   $('#overview-grid').addEventListener('click', e => {
     const open = e.target.closest('.ov-open'), tile = e.target.closest('.ov-tile');
@@ -461,8 +473,10 @@
       goTo(TAB_ORDER[(i + (e.key === 'ArrowRight' ? 1 : -1) + TAB_ORDER.length) % TAB_ORDER.length], true);
       return;
     }
-    if (view !== 'single') { // only randomizing applies here
-      if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) { e.preventDefault(); view === 'all' ? ovRandomize() : gdRandomize(); }
+    if (view !== 'single') { // only randomizing applies here (and the colour switch in the garden)
+      // (Space on the focused colour switch flips it rather than randomizing)
+      if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton && !(e.key === ' ' && t.type === 'checkbox')) { e.preventDefault(); view === 'all' ? ovRandomize() : gdRandomize(); }
+      else if (view === 'garden' && (e.key === 'c' || e.key === 'C')) setFullColour(!gd.full);
       return;
     }
     if ((e.key === ' ' || e.key === 'r' || e.key === 'R') && !onButton) {
