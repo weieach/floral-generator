@@ -2,3 +2,9 @@
 .claude/
 .vercel/
 visual-ref/
+
+# local reference images and exports: kept out of the (public) repo
+AI mockup/
+generated results/
+/Screenshot *.png
+/flora-*.png
