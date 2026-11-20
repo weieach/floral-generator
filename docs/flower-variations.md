@@ -70,7 +70,7 @@ The Translucent tab here still has them.
 
 ### Petal tips
 Four categories, deepest first. Code: `tipKind` in the prototype; here `tipRank`
-([butterfly.js:81](../butterfly.js#L81)) numbers them 3 → 0.
+([butterfly.js:88](../butterfly.js#L88)) numbers them 3 → 0.
 
 | Option | Code value | Look | In code |
 |---|---|---|---|
@@ -128,7 +128,7 @@ gradient control back to **Auto** (the seed's own choice; each Auto option names
 |---|---|---|
 | Two-tone wash | yellow → blue, peach → periwinkle, lemon → lilac, blush → aqua, cream → cornflower, or a single wash | `d.twoTone` (`TWO_TONES`, [butterfly.js:31](../butterfly.js#L31)) |
 | Ink | sumi black or the palette's tinted ink | `d.ink` |
-| Full colour range (Garden switch) | off: palettes and washes weighted toward the favourites; on: all equally likely | `GARDEN_FULL` ([butterfly.js:67](../butterfly.js#L67)) |
+| Full colour range (Garden switch) | off: palettes and washes weighted toward the favourites; on: all equally likely | `GARDEN_FULL` ([butterfly.js:73](../butterfly.js#L73)) |
 
 ## Differences between the prototype and this repo
 - The prototype still offers **Fan** for the front layer; the Garden never uses it.

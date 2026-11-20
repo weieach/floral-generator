@@ -154,7 +154,7 @@
     const d = GARDEN.makeDesign(seed, gd.full), info = GARDEN.describe(d);
     return `<div class="gd-card" data-i="${i}">` +
       `<button class="gd-tile" type="button" data-i="${i}" title="Click to reshuffle" ` +
-      `aria-label="Flower ${seed}, ${d.folds} petals: ${info.petal}. Click to reshuffle">${GARDEN.renderSVG(d, d.folds, {})}</button>` +
+      `aria-label="Flower ${seed}, ${d.folds} petals: ${info.petal}. Click to reshuffle">${GARDEN.renderSVG(d, d.folds, { bare: true })}</button>` +
       `<span class="gd-label" aria-hidden="true">No. ${seed} · ${d.folds} petals</span>` +
       `<button class="gd-save" type="button" data-i="${i}" aria-label="Save flower ${seed} as PNG" title="Save as PNG">↓</button>` +
       `</div>`;
@@ -491,6 +491,35 @@
       setFolds(state.folds + (e.key === 'ArrowRight' ? 1 : -1));
     }
   });
+
+  // ---------- local dev: redraw under the current rules when the code changes ----------
+  // Every flower is drawn from its seed when the page loads, so reloading brings the same seeds
+  // (kept in the URL) back under whatever rules the code now has. While working on localhost,
+  // poll the source files and reload when one changes; the Back histories survive the reload.
+  // The live site never polls.
+  const DEV = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  const HISTORY_KEY = 'flora-dev-history';
+  if (DEV) {
+    try { // restore the Back histories saved just before a code-change reload
+      const h = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || 'null');
+      sessionStorage.removeItem(HISTORY_KEY);
+      if (h) { past.push(...h.past); ov.past.push(...h.ov); gd.past.push(...h.gd); }
+    } catch (e) { /* storage unavailable: start without history */ }
+    const FILES = ['index.html', 'styles.css', 'flora.js', 'butterfly.js', 'paper.js', 'paint.js', 'app.js'];
+    const stamp = () => Promise.all(FILES.map(f => fetch(f, { method: 'HEAD', cache: 'no-store' })
+      .then(r => (r.ok ? r.headers.get('Last-Modified') + '/' + r.headers.get('Content-Length') : null))
+      .catch(() => null)));
+    let seen = null;
+    setInterval(async () => {
+      const s = await stamp();
+      if (s.includes(null)) return; // server down or mid-write: try again next time
+      const key = s.join('|');
+      if (seen === null) { seen = key; return; }
+      if (key === seen) return;
+      try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify({ past, ov: ov.past, gd: gd.past })); } catch (e) { /* no history kept */ }
+      location.reload();
+    }, 1000);
+  }
 
   readHash();
   if (!state.seed) state.seed = Flora.randomSeed();

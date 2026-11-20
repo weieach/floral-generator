@@ -31,13 +31,17 @@ same 20 flowers without changing their shapes. On top of the re-weighting it fol
 
 - No fan-shaped petals, and only smooth or notched petal edges.
 - One or two layers, even odds.
-- **One layer:** 5–8 petals, or 5–6 if they are spatulate.
+- **One layer:** 5–8 petals, or 5–6 if they are spatulate (spatulate petals are also kept narrow, so
+  they don't close into a single disc).
 - **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no lanceolate
-  petals on the back layer; tip dots on one layer at most, and none at all
-  next to a scorched layer. The back
-  layer's tip sits in a lower category than the front's (ink-dipped > deep colour > scorched >
-  plain; both plain is fine), and its colour is never darker than the front tip's.
-- Lanceolate petals never get the three-dot tip.
+  petals on the back layer, nor orbicular ones behind an orbicular front; tip dots on one layer at most, and none at all next to a scorched
+  layer. The back layer's tip is only ever scorched or plain, sits in a lower category than the
+  front's (ink-dipped > deep colour > scorched > plain; both plain is fine), and its colour is
+  never darker than the front tip's. When both tips are plain, the two layers share the front's hue, and
+  whenever both layers' washes are the same colour the front one (never the back) is made subtly
+  darker.
+- Lanceolate petals never get the three-dot tip, and on a two-layer flower get no tip dots at all.
+- Ovate petals get one tip dot at most.
 
 Garden seeds only reproduce in the Garden tab; the same seed in Translucent gives another flower.
 
@@ -80,10 +84,14 @@ date either way.
 
 ## Running locally
 
-No build step. Open `index.html` in a browser, or serve the folder:
+No build step. Serve the folder with the dev server:
 
 ```bash
-python3 -m http.server 5178
+python3 tools/dev-server.py 5178
 ```
+
+It turns browser caching off, and while the page is open on localhost it reloads itself whenever a
+source file changes. Seeds live in the URL, so the same flowers come back drawn under the current
+rules (a Garden rule change shows up on the 20 flowers already on screen). Back history survives.
 
 Reference images live in `visual-ref/`, which is git-ignored.

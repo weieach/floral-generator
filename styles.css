@@ -499,7 +499,6 @@ body:not([data-view="garden"]) .garden { display: none; }
   border-radius: 0;
   background: none;
   overflow: hidden;
-  box-shadow: 0 16px 34px -26px rgba(40, 30, 40, 0.45);
   transition: transform 0.2s ease;
 }
 .gd-tile:hover:not(:disabled) { background: none; transform: translateY(-3px); }

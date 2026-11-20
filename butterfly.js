@@ -37,6 +37,8 @@
   ];
   const SUMI = '#1d1a1b'; // plain ink, used instead of the palette's tinted ink some of the time
   const lum = h => { const v = parseInt(h.slice(1), 16); return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255); };
+  const rgbOf = h => { const v = parseInt(h.slice(1), 16); return [v >> 16, (v >> 8) & 255, v & 255]; };
+  const tintGap = (a, b) => { const A = rgbOf(a), B = rgbOf(b); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); }; // RGB distance
 
   // "Garden randomization": the same generator, re-weighted toward the traits of the hand-picked
   // favourites in generated results/ (65 seeds, compared against 20,000 random ones):
@@ -56,10 +58,14 @@
     edges: shape => [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.3]], // smooth or notched only
     // lanceolate petals: never on a back layer, and never the three-dot tip
     pointed: ['lanceolate'],
+    oneDot: ['ovate'], // at most one tip dot on these (never the three-dot version)
+    spoonMaxWidth: 1.18, // widest spatulate front petals (other shapes go up to 1.38)
     tipChance: { main: 0.85, back: 0.55 },
     inkTipChance: 0.55,
     burnChance: 0.5,
     backChance: 0.5, // one or two layers, even odds
+    sameTint: 10, // layers whose washes are this close (RGB distance) count as the same colour…
+    frontDarken: 0.032, // …and the front wash is then mixed this far toward the ink
   };
   // The Garden's "full colour range" switch: every palette and two-tone wash equally likely;
   // shapes and every other rule stay as above. makeDesign draws the same random numbers either
@@ -73,7 +79,8 @@
   // G (optional) is the Garden bias; without it every draw is exactly the Translucent original.
   // Garden only, in `o`: twoLayers (the flower has a back layer, so no spoon petals; the back
   // layer itself has no lanceolate petals either),
-  // front (the front layer's tip category and colour, which this back layer's must stay under, see backTip)
+  // frontShape (the front layer's shape: an orbicular front means a back that isn't orbicular),
+  // front (the front layer's tip category and colour, which this back layer's must stay under),
   // noDots (the front layer has tip dots or a scorched tip, so this one may have no dots) and
   // frontDots (the front layer has tip dots, so this one may not be scorched).
 
@@ -81,19 +88,14 @@
   const tipRank = (L, ink) => (L.tip ? (L.tip.colour === ink ? 3 : 2) : L.tipBurn ? 1 : 0);
   const tipColour = (L, P) => (L.tip ? L.tip.colour : L.tipBurn ? P.burn : null);
 
-  // Garden: a back layer's tip must be in a lower category than the front's (only plain may
-  // match plain), and its actual colour may not be darker than the front tip's either.
-  // Behind an ink dip an ink tip steps down to the deep colour; a dip that is still too deep
-  // is dropped (a scorched tip may then stand in, see burnOK).
-  function backTip(rng, tip, f, ink, P, byDepth) {
-    if (!tip || f.rank < 3) return null;
-    if (tip.colour === ink) tip.colour = mix(byDepth[0], P.ink, rng.range(0.1, 0.4));
-    return lum(tip.colour) >= lum(f.colour) ? tip : null;
-  }
+  // Garden shape list for a layer: no spoon petals on a two-layer flower; on its back layer no
+  // lanceolate petals, and no orbicular ones behind an orbicular front
+  const gardenShapes = (G, role, o) => G.shapes.filter(([s]) =>
+    !(o.twoLayers && s === 'spatulate') &&
+    !(role === 'back' && (G.pointed.includes(s) || (s === 'orbicular' && o.frontShape === 'orbicular'))));
 
   function makeLayer(rng, P, role, ink, twoTone, G, o = {}) {
-    // Garden: no spoon petals on a two-layer flower, and no lanceolate petals on its back layer
-    const shape = rng.weighted(G ? G.shapes.filter(([s]) => !(o.twoLayers && s === 'spatulate') && !(role === 'back' && G.pointed.includes(s))) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
+    const shape = rng.weighted(G ? gardenShapes(G, role, o) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
     const edge = rng.weighted(G ? G.edges(shape) : [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
     const E = {
       none: {},
@@ -115,20 +117,31 @@
       alpha: rng.range(0.82, 0.95),
       eyes: rng.chance(0.4) ? rng.int(1, 2) : 0, eyeSize: rng.range(2.5, 5), // dots in the dip: 0, 1, or 2 (= three dots)
     } : null;
-    // Garden: tip dots on one layer at most, and never the three-dot version on lanceolate
-    // petals (G.pointed)
-    if (G && tip) tip.eyes = o.noDots ? 0 : G.pointed.includes(shape) ? Math.min(tip.eyes, 1) : tip.eyes;
-    if (G && o.front) tip = backTip(rng, tip, o.front, ink, P, byDepth);
-    // a scorched back tip only behind a deep-coloured or ink-dipped front tip, only if the
-    // scorch colour is no darker than that tip, and never next to front tip dots
+    // Garden: tip dots on one layer at most; lanceolate petals (G.pointed) never get the
+    // three-dot version, and on a two-layer flower get no tip dots at all; ovate petals
+    // (G.oneDot) get one dot at most
+    if (G && tip) {
+      const lanceolate = G.pointed.includes(shape);
+      tip.eyes = o.noDots || (lanceolate && o.twoLayers) ? 0
+        : lanceolate || G.oneDot.includes(shape) ? Math.min(tip.eyes, 1) : tip.eyes;
+    }
+    // Garden, back layer: a scorched or plain tip only, never a coloured dip. Its tip must also
+    // sit below the front's (ink-dipped > deep colour > scorched > plain; only plain may match
+    // plain) and be no darker in colour: so a scorched back tip only behind a deep-coloured or
+    // ink-dipped front tip, only if the scorch colour is no darker than that tip, and never
+    // next to front tip dots
+    if (G && o.front) tip = null;
     const burnOK = !(G && o.front) || (o.front.rank > 1 && lum(P.burn) >= lum(o.front.colour) && !o.frontDots);
 
     return {
       role, shape, edge, E,
       cap: shape === 'flabellate' ? 'round' : null, capH: rng.range(0.6, 0.9),
       // Garden: the widest main petals blur into a disc at low petal counts, so stay at 1.1–1.38,
-      // leaning narrow
-      width: role === 'main' ? (G ? 1.1 + 0.28 * Math.pow(rng.range(0, 1), 1.3) : rng.range(1.1, 1.5)) : rng.range(0.9, 1.3),
+      // leaning narrow; spoon petals merge sooner (their heads close into one round disc with
+      // only thin stalks showing), so they stop at G.spoonMaxWidth
+      width: role === 'main'
+        ? (G ? 1.1 + ((shape === 'spatulate' ? G.spoonMaxWidth : 1.38) - 1.1) * Math.pow(rng.range(0, 1), 1.3) : rng.range(1.1, 1.5))
+        : rng.range(0.9, 1.3),
       extent: role === 'main' ? 1 : rng.range(0.8, 0.95),
       rbF: rng.range(0.05, 0.25), // petals meet almost at the centre, so no paper shows through
       base, toward, tip, tone: base, bodyAlpha: rng.range(0.5, 0.7),
@@ -157,12 +170,30 @@
     const twoLayers = G ? rng.chance(G.backChance) : false;
     const main = makeLayer(rng, P, 'main', ink, twoTone, G, { twoLayers });
     const back = (G ? twoLayers : rng.chance(0.55))
-      // Garden: the back layer's tip is lighter than the front's (see backTip)
+      // Garden: the back layer's tip is scorched or plain, below the front's (see makeLayer)
       ? makeLayer(rng, P, 'back', ink, twoTone, G, G ? {
-        twoLayers, front: { rank: tipRank(main, ink), colour: tipColour(main, P) },
+        twoLayers, frontShape: main.shape, front: { rank: tipRank(main, ink), colour: tipColour(main, P) },
         // tip dots on one layer at most, and none at all next to a scorched layer
         noDots: !!(main.tip && main.tip.eyes) || main.tipBurn, frontDots: !!(main.tip && main.tip.eyes),
       } : {}) : null;
+    // Garden: when both layers have plain tips they share one hue: the back layer takes the front's
+    // wash (a single-wash flower could otherwise pick a different light colour for each layer).
+    // The back is never darkened; the front is set apart by the step below.
+    if (G && back && tipRank(main, ink) === 0 && tipRank(back, ink) === 0) {
+      back.base = back.tone = main.base;
+      back.toward = main.toward;
+      back.matched = true;
+    }
+    // Garden: when the two layers still share a tint (their washes can't be told apart), darken
+    // the front layer's wash a little toward the ink so it sits visibly over the back one. It
+    // starts from whichever of the two near-identical washes is darker, so the front always ends
+    // up the darker layer, however small the step.
+    if (G && back && (tintGap(main.base, back.base) + tintGap(main.toward, back.toward)) / 2 < G.sameTint) {
+      const darker = (a, b) => (lum(a) <= lum(b) ? a : b);
+      main.base = main.tone = mix(darker(main.base, back.base), ink, G.frontDarken);
+      main.toward = mix(darker(main.toward, back.toward), ink, G.frontDarken);
+      main.darkened = true;
+    }
     const d = {
       seed, pal: P, ink, r1, r2, main, back, twoTone,
       // ring III: where the dark tip begins (a small outer band by default; Garden leans deeper)
@@ -302,9 +333,10 @@
     const tile = `x="${-HALF}" y="${-HALF}" width="${HALF * 2}" height="${HALF * 2}"`;
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="${-HALF} ${-HALF} ${HALF * 2} ${HALF * 2}">` +
       `<defs>${defs.join('')}</defs>` +
-      `<rect ${tile} fill="${P.paper}"/><rect class="texture" ${tile} filter="url(#${u}paper)" opacity="0.3"/>` +
+      // opts.bare (the Garden grid): no paper tile or grain, so the flower sits straight on the page
+      (opts.bare ? '' : `<rect ${tile} fill="${P.paper}"/><rect class="texture" ${tile} filter="url(#${u}paper)" opacity="0.3"/>`) +
       `<g class="flower">${flower}</g>` +
-      `<rect class="texture" ${tile} filter="url(#${u}grain)" opacity="0.3" style="mix-blend-mode:multiply"/>` +
+      (opts.bare ? '' : `<rect class="texture" ${tile} filter="url(#${u}grain)" opacity="0.3" style="mix-blend-mode:multiply"/>`) +
       (opts.grid ? renderGrid(rings(d), n) : '') +
       `</svg>`;
   }
