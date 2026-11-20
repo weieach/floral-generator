@@ -476,7 +476,6 @@ body:not([data-view="garden"]) .garden { display: none; }
 
 .garden-head { width: var(--gd-w); text-align: left; }
 .garden-head h1 { font-size: 30px; }
-.garden-head .lede { max-width: 62ch; }
 .garden-head .gd-colour { margin-top: 14px; font-size: 16px; flex-wrap: wrap; row-gap: 4px; }
 .gd-colour-note { color: var(--muted); font-size: 15px; font-style: italic; }
 
