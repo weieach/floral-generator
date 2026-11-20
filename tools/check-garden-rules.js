@@ -66,6 +66,14 @@ const RULES = [
     return d.back.matched && hueGap(d.main.base, d.back.base) < 12 && hueGap(d.main.toward, d.back.toward) < 12 &&
       lum(d.back.base) >= lum(d.main.base) && lum(d.back.toward) >= lum(d.main.toward);
   }],
+  ['T16', '2 layers: no notched edges on either layer', d => !two(d) || layers(d).every(L => L.edge === 'none')],
+  ['T17', 'alternating tip dots only with an even petal count and tip dots, and the drawing alternates', d => {
+    if (!layers(d).some(L => L.tip && L.tip.alternate)) return true;
+    if (d.folds % 2 || !dots(d.main) || (d.back && d.back.tip && d.back.tip.alternate)) return false;
+    const svg = G.renderSVG(d, d.folds, { bare: true });
+    const units = [...svg.matchAll(/main-unit(-plain)?" transform/g)].map(m => !!m[1]);
+    return units.length === d.folds && units.every((plain, i) => plain === (i % 2 === 1));
+  }],
   ['S1', 'lanceolate petals: no three tip dots', d => layers(d).every(L => L.shape !== 'lanceolate' || dots(L) < 2)],
   ['S2', 'ovate petals: at most one tip dot', d => layers(d).every(L => L.shape !== 'ovate' || dots(L) <= 1)],
   ['S3', 'spatulate front petals: width ≤ 1.18', d => d.main.shape !== 'spatulate' || d.main.width <= 1.18],
@@ -76,6 +84,14 @@ const RULES = [
 
 // Rules about odds rather than single flowers: [id, name, measure(flowers) → share, max share]
 const SHARES = [
+  ['T17', 'even petal count with tip dots: how far the alternating share is from 50%', flowers => {
+    const el = flowers.filter(d => d.folds % 2 === 0 && dots(d.main));
+    return Math.abs(el.filter(d => d.main.tip.alternate).length / (el.length || 1) - 0.5);
+  }, 0.05],
+  ['S4', '1 layer, lanceolate with a coloured tip: share with a tip dot (was 38%)', flowers => {
+    const lance = flowers.filter(d => !two(d) && d.main.shape === 'lanceolate' && d.main.tip);
+    return lance.filter(d => d.main.tip.eyes > 0).length / (lance.length || 1);
+  }, 0.15],
 ];
 
 const N = +process.argv[2] || 20000;

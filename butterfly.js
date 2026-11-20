@@ -59,6 +59,8 @@
     // lanceolate petals: never on a back layer, and never the three-dot tip
     pointed: ['lanceolate'],
     oneDot: ['ovate'], // at most one tip dot on these (never the three-dot version)
+    lanceDotKeep: 0.25, // one-layer lanceolate: share of its single tip dots that are kept
+    alternateDots: 0.5, // even petal count with tip dots: chance they show on every other petal
     spoonMaxWidth: 1.18, // widest spatulate front petals (other shapes go up to 1.38)
     tipChance: { main: 0.85, back: 0.55 },
     inkTipChance: 0.55,
@@ -96,7 +98,8 @@
 
   function makeLayer(rng, P, role, ink, twoTone, G, o = {}) {
     const shape = rng.weighted(G ? gardenShapes(G, role, o) : [['spatulate', 4], ['ovate', 2], ['elliptic', 1.5], ['orbicular', 1.5], ['flabellate', 1], ['lanceolate', 0.3]]);
-    const edge = rng.weighted(G ? G.edges(shape) : [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
+    // Garden: smooth or notched edges, but always smooth on a two-layer flower
+    const edge = rng.weighted(G ? (o.twoLayers ? [['none', 1]] : G.edges(shape)) : [['none', 5], ['notch', shape === 'lanceolate' ? 0 : 1.4], ['scallop', 0.6], ['serrate', 0.4]]);
     const E = {
       none: {},
       notch: { zone: rng.range(0.15, 0.25), depth: rng.range(0.06, 0.14) },
@@ -176,6 +179,10 @@
         // tip dots on one layer at most, and none at all next to a scorched layer
         noDots: !!(main.tip && main.tip.eyes) || main.tipBurn, frontDots: !!(main.tip && main.tip.eyes),
       } : {}) : null;
+    // Garden: a one-layer lanceolate flower rarely keeps its single tip dot (only lanceDotKeep of
+    // them). Drawn from its own stream, so nothing else about the seed moves.
+    if (G && !back && G.pointed.includes(main.shape) && main.tip && main.tip.eyes &&
+      !makeRng(seed + '|lanceDot').chance(G.lanceDotKeep)) main.tip.eyes = 0;
     // Garden: when both layers have plain tips they share one hue: the back layer takes the front's
     // wash (a single-wash flower could otherwise pick a different light colour for each layer).
     // The back is never darkened; the front is set apart by the step below.
@@ -208,6 +215,11 @@
     // a Garden flower carries its own petal count: 5–7 per layer with two layers; one layer
     // has 5–8, or 5–6 if its petals are spoon-shaped
     if (G) d.folds = back ? rng.int(...G.twoLayerFolds) : rng.weighted(main.shape === 'spatulate' ? G.spoonFolds : G.folds);
+    // Garden: with an even petal count, a layer with tip dots has a 50% chance (alternateDots) of
+    // showing them on every other petal only (the coloured tip stays on every petal; see
+    // renderLayer). Only the front layer can have dots. Own stream, so nothing else moves.
+    if (G && d.folds % 2 === 0 && main.tip && main.tip.eyes &&
+      makeRng(seed + '|altDots').chance(G.alternateDots)) main.tip.alternate = true;
     return d;
   }
 
@@ -225,7 +237,8 @@
     defs.push(`<clipPath id="${id}-clip"><path d="${g.d}"/></clipPath>`);
     parts.push(el('path', { d: g.d, fill: `url(#${id}-wash)` }));
 
-    let inner = '';
+    let inner = '', dotsMarkup = '';
+    const DOTS = '<!--tip-dots-->';
 
     // Deep-coloured tip: an enlarged petal minus a copy of itself slid toward the base (and widened
     // a lot, so only the tip is left). Its edge follows the tip's own curve, so neighbouring petals
@@ -250,7 +263,9 @@
           const ex = g.W * sh.f(Math.min(0.98, (tipStart - rb) / g.len)) * 0.4;
           eyes += dot([ex, ey - T.eyeSize * 2], T.eyeSize * 0.7) + dot([-ex, ey - T.eyeSize * 2], T.eyeSize * 0.7);
         }
-        inner += `<g fill="${T.colour}" fill-opacity="0.85" filter="url(#${d.u}soft)">${eyes}</g>`;
+        // a placeholder, so a dot-free copy of the petal can be made for alternating dots below
+        dotsMarkup = `<g fill="${T.colour}" fill-opacity="0.85" filter="url(#${d.u}soft)">${eyes}</g>`;
+        inner += DOTS;
       }
     }
 
@@ -283,12 +298,19 @@
 
     parts.push(`<g clip-path="url(#${id}-clip)">${inner}</g>`);
     parts.push(el('path', { d: g.d, fill: 'none', stroke: mix(L.tone, ink, 0.35), 'stroke-opacity': '0.12', 'stroke-width': '0.6' }));
-    defs.push(`<g id="${id}-unit" opacity="${L.opacity.toFixed(2)}">${parts.join('')}</g>`);
+    const unit = parts.join('');
+    defs.push(`<g id="${id}-unit" opacity="${L.opacity.toFixed(2)}">${unit.replace(DOTS, dotsMarkup)}</g>`);
+    // Alternating tip dots (Garden, even petal counts): a second copy of the petal without them,
+    // used for every other petal. With an even count the pattern closes cleanly all the way round.
+    const alternate = !!(L.tip && L.tip.alternate && dotsMarkup && n % 2 === 0);
+    if (alternate) defs.push(`<g id="${id}-unit-plain" opacity="${L.opacity.toFixed(2)}">${unit.replace(DOTS, '')}</g>`);
 
     // Translucent petals: overlap order barely shows, so no seam fix is needed here.
     const alpha = TAU / n;
     let out = '';
-    for (let s = 0; s < n; s++) out += `<use xlink:href="#${id}-unit" transform="rotate(${toDeg(s * alpha + offset)})"/>`;
+    for (let s = 0; s < n; s++) {
+      out += `<use xlink:href="#${id}-unit${alternate && s % 2 ? '-plain' : ''}" transform="rotate(${toDeg(s * alpha + offset)})"/>`;
+    }
     return `<g filter="url(#${d.u}wobble)">${out}</g>`;
   }
 

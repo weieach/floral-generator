@@ -33,15 +33,17 @@ same 20 flowers without changing their shapes. On top of the re-weighting it fol
 - One or two layers, even odds.
 - **One layer:** 5–8 petals, or 5–6 if they are spatulate (spatulate petals are also kept narrow, so
   they don't close into a single disc).
-- **Two layers:** 5–7 petals per layer; no spatulate petals on either layer and no lanceolate
+- **Two layers:** 5–7 petals per layer; no spatulate petals or notched edges on either layer, no lanceolate
   petals on the back layer, nor orbicular ones behind an orbicular front; tip dots on one layer at most, and none at all next to a scorched
   layer. The back layer's tip is only ever scorched or plain, sits in a lower category than the
   front's (ink-dipped > deep colour > scorched > plain; both plain is fine), and its colour is
   never darker than the front tip's. When both tips are plain, the two layers share the front's hue, and
   whenever both layers' washes are the same colour the front one (never the back) is made subtly
   darker.
-- Lanceolate petals never get the three-dot tip, and on a two-layer flower get no tip dots at all.
+- Lanceolate petals never get the three-dot tip, on a two-layer flower get no tip dots at all, and on a
+  one-layer flower only rarely get their single dot.
 - Ovate petals get one tip dot at most.
+- With an even petal count, tip dots have a 50% chance of showing on every other petal only.
 
 Garden seeds only reproduce in the Garden tab; the same seed in Translucent gives another flower.
 

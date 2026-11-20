@@ -16,17 +16,16 @@ It generates 20,000 Garden flowers in each colour mode and reports, for each rul
 it; rules about odds can be checked as a share against a limit (`SHARES`). Exit code 1 if anything fails.
 
 All code references are in [butterfly.js](../butterfly.js): the `GARDEN` settings block
-([line 47](../butterfly.js#L47)), `makeLayer` ([line 97](../butterfly.js#L97)) and `makeDesign`.
+([line 47](../butterfly.js#L47)), `makeLayer` ([line 99](../butterfly.js#L99)) and `makeDesign`.
 
 **Status as of 2026-11-20: every rule is implemented, passes, and is live** (20,000 flowers in each
-colour mode, 0 violations). Deployed together on this date: T8, T9, T11, T12, T14, T15, S2 and S3,
-with T10 and T13 withdrawn.
+colour mode, 0 violations). T16, T17 and S4 were added and deployed on this date.
 
 ## Decision tree process
 
 | # | Step | Status | How |
 |---|---|---|---|
-| D1 | 1 layer or 2 layers, 1:1 chance | ✅ | `backChance: 0.5`, drawn before either layer ([line 170](../butterfly.js#L170)). Measured 49.9% / 50.4% two-layer |
+| D1 | 1 layer or 2 layers, 1:1 chance | ✅ | `backChance: 0.5`, drawn before either layer ([line 173](../butterfly.js#L173)). Measured 49.9% / 50.4% two-layer |
 | D2 | Front layer petal shape | ✅ | The front layer is made next, knowing the layer count |
 | D3 | Back layer petal shape (if a second layer is allocated) | ✅ | Made after the front layer, so it can follow the front's shape and tip |
 
@@ -37,30 +36,33 @@ The palette, ink, centre size and wash are drawn before step D1; they don't depe
 | Id | Rule | Status | How |
 |---|---|---|---|
 | | **If 1 layer** | | |
-| L1 | 5–8 petals | ✅ | `folds` weights 5 › 6 › 7 › 8 ([line 210](../butterfly.js#L210)) |
+| L1 | 5–8 petals | ✅ | `folds` weights 5 › 6 › 7 › 8 ([line 217](../butterfly.js#L217)) |
 | L2 | Spatulate shape: 5–6 petals | ✅ | `spoonFolds` |
 | | **If 2 layers** | | |
 | T1 | Ink-dipped tips on ≤1 layer | ✅ | Follows from T8: the back tip is never a coloured dip |
-| T2 | No spatulate petals on either layer | ✅ | Shape list filtered when `twoLayers` ([line 93](../butterfly.js#L93)) |
+| T2 | Neither layer has spatulate petals | ✅ | Shape list filtered when `twoLayers` ([line 95](../butterfly.js#L95)) |
+| T16 | Neither layer has notched petal edges | ✅ | Edge forced smooth when `twoLayers` ([line 102](../butterfly.js#L102)). One-layer flowers keep their notches (about 19%) |
+| T17 | If a layer has an even number of petals and uses tip dots: 50% chance the tip dots appear only on every other petal | ✅ | Chosen from a separate random stream (`alternateDots: 0.5`; briefly 25%; [line 63](../butterfly.js#L63); [line 221](../butterfly.js#L221)); the renderer then alternates a dotted and a dot-free copy of the petal ([line 305](../butterfly.js#L305)). Every petal keeps its coloured tip. Only the front layer can have dots (T8), so in practice this is 6- or 8-petal flowers with front tip dots: about 6% of all Garden flowers. Checked per flower (even count, dots, drawing alternates) and as a share (within 5 points of 50%) |
 | T3 | Tip dots on ≤1 layer | ✅ | Follows from T8: dots sit inside a coloured dip, which only the front can have |
-| T4 | Back tip may not exceed the front tip in the hierarchy ink-dipped › deep colour › scorched › plain, nor share its category (both plain is fine) | ✅ | With T8 this means: a scorched back only behind an ink-dipped or deep-coloured front; behind a scorched or plain front the back is plain (`burnOK`, [line 134](../butterfly.js#L134)) |
+| T4 | Back tip may not exceed the front tip in the hierarchy ink-dipped › deep colour › scorched › plain, nor share its category (both plain is fine) | ✅ | With T8 this means: a scorched back only behind an ink-dipped or deep-coloured front; behind a scorched or plain front the back is plain (`burnOK`, [line 137](../butterfly.js#L137)) |
 | T5 | Within a category, specific colour counts too (e.g. black › purple) | ✅ | Applied as: the back tip's colour may never be darker than the front tip's, in any category. With T8 this is the scorch brown against the front tip: behind a pale deep-colour tip the back becomes plain |
 | T6 | Back layer has no lanceolate petals | ✅ | Shape list filtered for the back layer (`gardenShapes`, `pointed`, [line 60](../butterfly.js#L60)); back layers are elliptic, ovate or orbicular |
-| T7 | If either layer is scorched, the other has no tip dots | ✅ | Front has dots → back may not be scorched (`frontDots`, [line 134](../butterfly.js#L134)); a scorched front means a plain back (T4), so the back can't have dots either |
-| T8 | Back tip can only be scorched or plain | ✅ | The back layer never gets a coloured dip ([line 133](../butterfly.js#L133)) |
-| T9 | Lanceolate petals have no tip dots | ✅ | Dots are cleared on lanceolate petals when `twoLayers` ([line 125](../butterfly.js#L125)). Only the front can be lanceolate (T6) |
+| T7 | If either layer is scorched, the other has no tip dots | ✅ | Front has dots → back may not be scorched (`frontDots`, [line 137](../butterfly.js#L137)); a scorched front means a plain back (T4), so the back can't have dots either |
+| T8 | Back tip can only be scorched or plain | ✅ | The back layer never gets a coloured dip ([line 136](../butterfly.js#L136)) |
+| T9 | Lanceolate petals have no tip dots | ✅ | Dots are cleared on lanceolate petals when `twoLayers` ([line 128](../butterfly.js#L128)). Only the front can be lanceolate (T6) |
 | T10 | ~~If the top layer's tip is plain, set it apart from the bottom layer (soft outline, then deep-coloured edges and a darker heart)~~ | ❌ withdrawn | Removed 2026-11-19 at your request; plain-tipped front layers get no extra treatment |
 | T11 | No outline, deep-coloured edges or darker centre on plain-tipped petals | ✅ | Nothing is added; the check confirms no flower carries any of them |
-| T12 | If the front layer is orbicular, the back layer can't be orbicular | ✅ new | `gardenShapes` ([line 93](../butterfly.js#L93)) drops orbicular from the back layer's list when `frontShape` is orbicular, so the back is elliptic or ovate |
+| T12 | If the front layer is orbicular, the back layer can't be orbicular | ✅ | `gardenShapes` ([line 95](../butterfly.js#L95)) drops orbicular from the back layer's list when `frontShape` is orbicular, so the back is elliptic or ovate |
 | T13 | ~~Make it less likely that both layers have plain tips and the same tint (the back layer took the palette's deeper wash)~~ | ❌ withdrawn | Removed 2026-11-19: it darkened the bottom layer and gave it a different hue. Replaced by T15 + T14 |
-| T14 | When the front and back layers' washes are the same colour, make the front layer subtly darker | ✅ new | "Same colour" = washes under 10 RGB steps apart, i.e. indistinguishable (`sameTint`, [line 67](../butterfly.js#L67)); exact hex matches are rare, but 85% of two-layer flowers are this close. The front wash is then mixed 3.2% toward the ink (`frontDarken`; first 8%, cut by 60%), starting from whichever of the two washes is darker so the front always ends up the darker layer. It darkens without shifting the hue ([line 191](../butterfly.js#L191)). No random draws, so seeds are unchanged apart from that shade. Plain/plain flowers always qualify, since T15 gives them matching washes |
-| T15 | If both layers have plain tips, they have the same hue, and the bottom layer is never darkened | ✅ new | The back layer takes the front's wash ([line 182](../butterfly.js#L182)), then T14 makes the front subtly darker. A single-wash flower could otherwise pick a different light colour for each layer. Checked: same hue (within 12°) and the back no darker than the front |
+| T14 | When the front and back layers' washes are the same colour, make the front layer subtly darker | ✅ | "Same colour" = washes under 10 RGB steps apart, i.e. indistinguishable (`sameTint`, [line 69](../butterfly.js#L69)); exact hex matches are rare, but 85% of two-layer flowers are this close. The front wash is then mixed 3.2% toward the ink (`frontDarken`; first 8%, cut by 60%), starting from whichever of the two washes is darker so the front always ends up the darker layer. It darkens without shifting the hue ([line 198](../butterfly.js#L198)). No random draws, so seeds are unchanged apart from that shade. Plain/plain flowers always qualify, since T15 gives them matching washes |
+| T15 | If both layers have plain tips, they have the same hue, and the bottom layer is never darkened | ✅ | The back layer takes the front's wash ([line 189](../butterfly.js#L189)), then T14 makes the front subtly darker. A single-wash flower could otherwise pick a different light colour for each layer. Checked: same hue (within 12°) and the back no darker than the front |
 | | **If petal shape = lanceolate** | | |
-| S1 | No three tip dots | ✅ | A three-dot draw becomes one dot ([line 125](../butterfly.js#L125)); with two layers T9 removes the dots entirely, so this matters for one-layer flowers |
+| S1 | No three tip dots | ✅ | A three-dot draw becomes one dot ([line 128](../butterfly.js#L128)); with two layers T9 removes the dots entirely, so this matters for one-layer flowers |
+| S4 | One layer only: lanceolate petals rarely get their single tip dot | ✅ | Only a quarter of the one-dot draws are kept (`lanceDotKeep: 0.25`, [line 62](../butterfly.js#L62); [line 184](../butterfly.js#L184)), from a separate random stream. Share of one-layer lanceolate flowers with a coloured tip that have a dot: 38% → about 9% (checked as a share, limit 15%) |
 | | **If petal shape = ovate** | | |
-| S2 | At most one tip dot | ✅ new | `oneDot` ([line 61](../butterfly.js#L61)): a three-dot draw becomes one dot ([line 125](../butterfly.js#L125)) |
+| S2 | At most one tip dot | ✅ | `oneDot` ([line 61](../butterfly.js#L61)): a three-dot draw becomes one dot ([line 128](../butterfly.js#L128)) |
 | | **If petal shape = spatulate** | | |
-| S3 | Petal width at most 1.18 (other shapes go up to 1.38) | ✅ new | `spoonMaxWidth` ([line 62](../butterfly.js#L62)), used in the width draw ([line 143](../butterfly.js#L143)). Wider spoon petals close into one round disc with only thin stalks showing near the centre; up to about 1.16 each petal still reads on its own |
+| S3 | Petal width at most 1.18 (other shapes go up to 1.38) | ✅ | `spoonMaxWidth` ([line 64](../butterfly.js#L64)), used in the width draw ([line 146](../butterfly.js#L146)). Wider spoon petals close into one round disc with only thin stalks showing near the centre; up to about 1.16 each petal still reads on its own |
 
 Three tip dots now only appear on elliptic, spatulate and orbicular petals.
 
@@ -92,6 +94,10 @@ was undone on 2026-11-19 (`pointed: ['lanceolate']`, [line 60](../butterfly.js#L
 
 ## Changelog
 
+- **2026-11-20**: Deployed T16, T17 (at 50%) and S4.
+- **2026-11-20 (after deploy `604318b`)**: T17 chance lowered from 50% to 25%, then set back to 50%. Added T17 (even petal count with tip dots: 50% chance they show
+  on every other petal; agreed earlier but not built until now). Added S4 (one-layer lanceolate: single tip dot kept only a quarter
+  of the time). Added T16 (two-layer flowers: no notched edges).
 - **2026-11-20**: Deployed everything since `e37b3b9` (rules above, the bare Garden cards, and the
   local dev server with auto-refresh).
 - **2026-11-19 (after deploy `e37b3b9`)**: Withdrew T13 (it darkened the bottom layer and changed its
